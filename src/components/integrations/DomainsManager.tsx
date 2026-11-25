@@ -45,7 +45,7 @@ export function DomainsManager({ domains, campaigns, allowed, max, target, apexA
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="frame.congty.vn" className="sm:flex-1" />
           <Select value={camp} onChange={(e) => setCamp(e.target.value)} className="h-11 sm:w-64">
-            <option value="">— Trang chủ: chưa gắn chiến dịch —</option>
+            <option value="">— Trang chủ thương hiệu (nếu gói có) —</option>
             {campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
           </Select>
           <Button className="h-11" onClick={add} loading={adding} disabled={!host.trim() || domains.length >= max}><Globe className="size-4" /> Thêm</Button>
@@ -129,7 +129,7 @@ function DomainCard({ d, campaigns, target, apexA, txtPrefix }: { d: D; campaign
       <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-ink-3">Trang chủ hiển thị:</span>
         <Select value={d.campaign_id || ""} onChange={(e) => map(e.target.value)} className="h-9 w-auto min-w-56">
-          <option value="">— Chưa gắn —</option>
+          <option value="">— Trang chủ thương hiệu (nếu gói có) —</option>
           {campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </Select>
         <span className="text-xs text-ink-3">Các chiến dịch khác: <code>{d.hostname}/&lt;link-chiến-dịch&gt;</code></span>

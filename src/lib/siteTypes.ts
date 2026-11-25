@@ -15,6 +15,8 @@ export const sectionSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("features"), title: str(160), items: z.array(z.object({ icon: z.enum(FEATURE_ICONS), title: str(80), desc: str(240) })).max(12) }),
   z.object({ ...base, type: z.literal("cta"), title: str(160), desc: str(300), button: str(40) }),
   z.object({ ...base, type: z.literal("text"), title: str(160), body: str(2000) }),
+  // brand portals only: auto-lists the owner's published campaigns
+  z.object({ ...base, type: z.literal("campaigns"), title: str(160), subtitle: str(300) }),
 ]);
 
 export const siteSchema = z.object({
@@ -76,7 +78,25 @@ export function newSection(type: SectionType): HomeSection {
     case "features": return { id, type, visible: true, title: "Tính năng", items: [{ icon: "sparkles", title: "Tính năng mới", desc: "Mô tả ngắn" }] };
     case "cta": return { id, type, visible: true, title: "Sẵn sàng bắt đầu?", desc: "Tạo chiến dịch đầu tiên chỉ trong 5 phút.", button: "Dùng miễn phí" };
     case "text": return { id, type, visible: true, title: "Tiêu đề", body: "Nội dung…" };
+    case "campaigns": return { id, type, visible: true, title: "Các chiến dịch đang diễn ra", subtitle: "Chọn một chiến dịch để tạo avatar hoặc thiệp mời của bạn." };
   }
 }
 
-export const SECTION_LABEL: Record<SectionType, string> = { hero: "Banner đầu trang", steps: "Các bước", features: "Lưới tính năng", cta: "Khối kêu gọi", text: "Đoạn văn tự do" };
+export const SECTION_LABEL: Record<SectionType, string> = { hero: "Banner đầu trang", steps: "Các bước", features: "Lưới tính năng", cta: "Khối kêu gọi", text: "Đoạn văn tự do", campaigns: "Danh sách chiến dịch" };
+
+export type SiteScope = "platform" | "portal";
+
+/** Starting point for a customer's own brand portal. */
+export function defaultPortal(name: string): SiteSettings {
+  return {
+    brand: { name: name.slice(0, 40) || "Thương hiệu của tôi", logoUrl: "", iconUrl: "", primary: "#FF5A1F", ink: "#0C0A09" },
+    seo: { title: name, description: "Tạo avatar & thiệp mời cho các sự kiện của chúng tôi.", ogImage: "" },
+    home: {
+      sections: [
+        { id: "hero", type: "hero", visible: true, badge: name, title: "Cùng lan toả tinh thần sự kiện", highlight: "lan toả", subtitle: "Chọn một chiến dịch bên dưới, tải ảnh và nhận avatar/thiệp mời mang dấu ấn riêng của bạn chỉ trong vài giây.", ctaPrimary: "Bắt đầu ngay", ctaSecondary: "", image: "" },
+        { id: "campaigns", type: "campaigns", visible: true, title: "Các chiến dịch đang diễn ra", subtitle: "" },
+      ],
+    },
+    footer: `© {year} ${name}`,
+  };
+}

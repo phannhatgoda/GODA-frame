@@ -10,6 +10,7 @@ export interface Features {
   aiCaption: boolean;
   premiumTemplates: boolean;
   removeBranding: boolean;
+  whiteLabel: boolean;
   exportCsv: boolean;
   customDomain: boolean;
   embed: boolean;
@@ -20,7 +21,7 @@ export type FeatureKey = keyof Features;
 
 export const FEATURE_GROUPS: { title: string; keys: FeatureKey[] }[] = [
   { title: "Hạn mức", keys: ["maxCampaigns", "maxStorageMB", "maxDomains"] },
-  { title: "Sản phẩm", keys: ["invitation", "premiumTemplates", "removeBranding"] },
+  { title: "Sản phẩm", keys: ["invitation", "premiumTemplates", "removeBranding", "whiteLabel"] },
   { title: "AI", keys: ["aiFace", "aiBackground", "aiCaption"] },
   { title: "Tích hợp & dữ liệu", keys: ["customDomain", "embed", "api", "exportCsv"] },
 ];
@@ -32,6 +33,7 @@ export const FEATURE_META: Record<FeatureKey, { label: string; hint: string; kin
   invitation: { label: "Thiệp mời", hint: "Tạo thiệp có trường tên khách", kind: "bool" },
   premiumTemplates: { label: "Giao diện cao cấp", hint: "Studio, Paper, Neon", kind: "bool" },
   removeBranding: { label: "Ẩn 'Powered by GODA'", hint: "White-label", kind: "bool" },
+  whiteLabel: { label: "Thương hiệu riêng", hint: "Logo, màu, favicon, thumbnail & trang chủ riêng", kind: "bool" },
   aiFace: { label: "AI căn khuôn mặt", hint: "Tự nhận diện & căn mặt vào khung", kind: "bool" },
   aiBackground: { label: "AI tách nền", hint: "Xoá phông, thay nền, xoá phông mờ", kind: "bool" },
   aiCaption: { label: "AI viết caption", hint: "Gợi ý caption đăng social", kind: "bool" },
@@ -43,12 +45,12 @@ export const FEATURE_META: Record<FeatureKey, { label: string; hint: string; kin
 
 export const ALL_FEATURES: Features = {
   maxCampaigns: 9999, maxStorageMB: 100000, maxDomains: 100, invitation: true, aiFace: true, aiBackground: true,
-  aiCaption: true, premiumTemplates: true, removeBranding: true, exportCsv: true, customDomain: true, embed: true, api: true,
+  aiCaption: true, premiumTemplates: true, removeBranding: true, whiteLabel: true, exportCsv: true, customDomain: true, embed: true, api: true,
 };
 
 export const NO_FEATURES: Features = {
   maxCampaigns: 0, maxStorageMB: 0, maxDomains: 0, invitation: false, aiFace: false, aiBackground: false,
-  aiCaption: false, premiumTemplates: false, removeBranding: false, exportCsv: false, customDomain: false, embed: false, api: false,
+  aiCaption: false, premiumTemplates: false, removeBranding: false, whiteLabel: false, exportCsv: false, customDomain: false, embed: false, api: false,
 };
 
 export interface PlanDef {
@@ -69,7 +71,7 @@ export const DEFAULT_PLANS: PlanDef[] = [
   },
   {
     id: "pro", name: "Pro", price: "Liên hệ", description: "Cho phòng truyền thông nội bộ",
-    features: { ...ALL_FEATURES, maxCampaigns: 15, maxStorageMB: 500, maxDomains: 1, removeBranding: false, api: false },
+    features: { ...ALL_FEATURES, maxCampaigns: 15, maxStorageMB: 500, maxDomains: 1, removeBranding: false, whiteLabel: false, api: false },
   },
   {
     id: "business", name: "Business", price: "Liên hệ", description: "White-label, tên miền & API",

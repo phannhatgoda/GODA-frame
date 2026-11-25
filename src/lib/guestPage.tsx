@@ -7,6 +7,8 @@ import { getUser, isAdmin } from "./auth";
 import { GuestView } from "@/components/guest/GuestView";
 import type { Features } from "./features";
 import type { Variant } from "./types";
+import { activeBrand } from "./site";
+import type { SiteSettings } from "./siteTypes";
 
 type Campaign = NonNullable<Awaited<ReturnType<typeof getCampaignBySlug>>>;
 
@@ -15,7 +17,8 @@ export async function loadCampaign(by: { slug?: string; id?: string; ownerId?: s
   if (!c || (by.ownerId && c.owner_id !== by.ownerId)) return null;
   const owner = await one<{ plan: string; role: string; features: string; status: string }>("SELECT plan, role, features, status FROM users WHERE id = ?", [c.owner_id]);
   if (!owner) return null;
-  return { c, owner, perms: await featuresFor(owner) };
+  const perms = await featuresFor(owner);
+  return { c, owner, perms, brand: await activeBrand({ id: c.owner_id }, perms) };
 }
 
 export function shareImageFor(c: Campaign) {
@@ -27,14 +30,15 @@ export function shareImageFor(c: Campaign) {
   return { url: `/api/og/${c.slug}?v=${c.updated_at}`, width: 1200, height: 630 };
 }
 
-export function campaignMetadata(c: Campaign | undefined): Metadata {
+export function campaignMetadata(c: Campaign | undefined, brand?: SiteSettings | null): Metadata {
   if (!c) return { title: "Không tìm thấy" };
   const img = shareImageFor(c);
   const title = c.theme.headline || c.title;
   return {
     title: { absolute: title },
     description: c.theme.subheadline,
-    openGraph: { title, description: c.theme.subheadline, type: "website", images: [{ ...img, alt: title }] },
+    openGraph: { title, description: c.theme.subheadline, type: "website", images: [{ ...img, alt: title }], ...(brand ? { siteName: brand.brand.name } : {}) },
+    ...(brand?.brand.iconUrl ? { icons: { icon: brand.brand.iconUrl, apple: brand.brand.iconUrl } } : {}),
     twitter: { card: "summary_large_image", title, description: c.theme.subheadline, images: [img.url] },
   };
 }

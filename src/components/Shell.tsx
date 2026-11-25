@@ -66,7 +66,7 @@ export function Shell({ nav, user, children, area }: { nav: NavItem[]; user: { n
         {nav.map((n) => {
           const I = ICONS[n.icon];
           return (
-            <Link key={n.href} href={n.href} className={cx("flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium", active(n) ? "bg-ink text-white" : "text-ink-3")}>
+            <Link key={n.href} href={n.href} className={cx("flex min-w-0 flex-1 flex-col items-center gap-0.5 whitespace-nowrap rounded-xl py-1.5 font-medium", nav.length > 5 ? "text-[9.5px]" : "text-[11px]", active(n) ? "bg-ink text-white" : "text-ink-3")}>
               <I className="size-5" /> {n.label}
             </Link>
           );

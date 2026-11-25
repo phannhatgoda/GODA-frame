@@ -5,7 +5,7 @@ import {
   ChevronDown, Copy, Eye, EyeOff, GripVertical, ImageUp, Laptop, Loader2, Plus, RotateCcw, Save, Smartphone, Trash2, X,
 } from "lucide-react";
 import { api, Button, cx, Field, Input, Segmented, Select, Textarea, useToast } from "../ui";
-import { DEFAULT_SITE, FEATURE_ICONS, newSection, SECTION_LABEL, type HomeSection, type SectionType, type SiteSettings } from "@/lib/siteTypes";
+import { FEATURE_ICONS, newSection, SECTION_LABEL, type HomeSection, type SectionType, type SiteScope, type SiteSettings } from "@/lib/siteTypes";
 import { ICONS } from "../home/HomeView";
 
 type Tab = "brand" | "home" | "seo";
@@ -73,7 +73,18 @@ function useReorder<T>(list: T[], set: (l: T[]) => void) {
   return { handlers, over, move };
 }
 
-export function SiteEditor({ initial }: { initial: SiteSettings }) {
+export interface SiteEditorProps {
+  initial: SiteSettings;
+  defaults: SiteSettings;
+  scope: SiteScope;
+  endpoint: string;
+  previewSrc: string;
+  ogPreview: string;
+  title: string;
+  publicUrl?: string;
+}
+
+export function SiteEditor({ initial, defaults, scope, endpoint, previewSrc, ogPreview, title, publicUrl }: SiteEditorProps) {
   const router = useRouter();
   const toast = useToast();
   const [site, setSite] = useState<SiteSettings>(initial);
@@ -124,9 +135,9 @@ export function SiteEditor({ initial }: { initial: SiteSettings }) {
   async function save() {
     setSaving(true);
     try {
-      await api("/api/admin/site", { method: "PUT", json: site });
+      await api(endpoint, { method: "PUT", json: site });
       setSaved(JSON.stringify(site));
-      toast("Đã lưu — giao diện mới áp dụng ngay cho toàn hệ thống");
+      toast(scope === "platform" ? "Đã lưu — giao diện mới áp dụng ngay cho toàn hệ thống" : "Đã lưu — thương hiệu áp dụng cho trang chủ, trang chiến dịch & dashboard của bạn");
       router.refresh();
     } catch (e) {
       toast((e as Error).message, "bad");
@@ -139,10 +150,13 @@ export function SiteEditor({ initial }: { initial: SiteSettings }) {
     <div className="-mx-4 -mt-6 sm:-mx-6 lg:-mx-10 lg:-mt-10">
       <div className="sticky top-14 z-20 flex flex-wrap items-center gap-3 border-b border-line bg-canvas/85 px-4 py-3 backdrop-blur-xl sm:px-6 lg:top-0 lg:px-10">
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-semibold">Giao diện hệ thống</h1>
-          <p className="text-xs text-ink-3">{dirty ? "Có thay đổi chưa lưu" : "Đã lưu"} · Bấm vào bất kỳ phần nào trên bản xem trước để sửa</p>
+          <h1 className="text-lg font-semibold">{title}</h1>
+          <p className="text-xs text-ink-3">
+            {dirty ? "Có thay đổi chưa lưu" : "Đã lưu"} · Bấm vào bất kỳ phần nào trên bản xem trước để sửa
+            {publicUrl && <> · <a href={publicUrl} target="_blank" className="font-medium text-brand hover:underline">Mở trang chủ thương hiệu ↗</a></>}
+          </p>
         </div>
-        <Button variant="ghost" onClick={() => { if (confirm("Khôi phục toàn bộ giao diện về mặc định? (chưa lưu cho tới khi bấm Lưu)")) setSite(DEFAULT_SITE); }}><RotateCcw className="size-4" /> Mặc định</Button>
+        <Button variant="ghost" onClick={() => { if (confirm("Khôi phục toàn bộ giao diện về mặc định? (chưa lưu cho tới khi bấm Lưu)")) setSite(defaults); }}><RotateCcw className="size-4" /> Mặc định</Button>
         <Button onClick={save} loading={saving} disabled={!dirty}><Save className="size-4" /> Lưu & áp dụng</Button>
       </div>
 
@@ -180,7 +194,7 @@ export function SiteEditor({ initial }: { initial: SiteSettings }) {
                 <div className="mb-1.5 text-[13px] font-medium text-ink-2">Xem trước khi chia sẻ (Facebook / Zalo)</div>
                 <div className="overflow-hidden rounded-xl border border-line">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={site.seo.ogImage || `/api/og/site?v=${encodeURIComponent(saved.length + site.brand.primary)}`} alt="" className="aspect-[1200/630] w-full bg-stone-100 object-cover" />
+                  <img src={site.seo.ogImage || `${ogPreview}?v=${encodeURIComponent(saved.length + site.brand.primary)}`} alt="" className="aspect-[1200/630] w-full bg-stone-100 object-cover" />
                   <div className="bg-stone-50 p-3">
                     <div className="text-[11px] uppercase text-ink-3">{typeof location !== "undefined" ? location.host : ""}</div>
                     <div className="line-clamp-1 font-semibold">{site.seo.title}</div>
@@ -221,7 +235,7 @@ export function SiteEditor({ initial }: { initial: SiteSettings }) {
                   </div>
                 ))}
               </div>
-              <AddSection onAdd={(t) => { const n = newSection(t); setSections([...sections, n]); setOpen(n.id); setScrollTo(n.id); }} />
+              <AddSection scope={scope} onAdd={(t) => { const n = newSection(t); setSections([...sections, n]); setOpen(n.id); setScrollTo(n.id); }} />
               <section id="card-__footer" className={cx("rounded-2xl border border-line bg-white p-4 shadow-soft", open === "__footer" && "ring-2 ring-brand/40")}>
                 <Field label="Footer" hint="{year} sẽ tự thay bằng năm hiện tại"><Input value={site.footer} onChange={(e) => setSite((x) => ({ ...x, footer: e.target.value }))} maxLength={300} /></Field>
               </section>
@@ -234,14 +248,14 @@ export function SiteEditor({ initial }: { initial: SiteSettings }) {
             <span className="flex items-center gap-2 text-sm font-semibold"><Eye className="size-4" /> Xem trước trực tiếp</span>
             <Segmented value={device} onChange={setDevice} options={[{ value: "desktop", label: <Laptop className="size-4" /> }, { value: "mobile", label: <Smartphone className="size-4" /> }]} />
           </div>
-          <Preview iframeRef={iframe} device={device} />
+          <Preview iframeRef={iframe} device={device} src={previewSrc} />
         </div>
       </div>
     </div>
   );
 }
 
-function Preview({ iframeRef, device }: { iframeRef: React.RefObject<HTMLIFrameElement | null>; device: "desktop" | "mobile" }) {
+function Preview({ iframeRef, device, src }: { iframeRef: React.RefObject<HTMLIFrameElement | null>; device: "desktop" | "mobile"; src: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(800);
   const [loading, setLoading] = useState(true);
@@ -258,21 +272,21 @@ function Preview({ iframeRef, device }: { iframeRef: React.RefObject<HTMLIFrameE
       {loading && <div className="absolute inset-0 z-10 grid place-items-center"><Loader2 className="size-6 animate-spin text-ink-3" /></div>}
       <div className="mx-auto overflow-hidden rounded-2xl border border-line bg-white shadow-lift" style={{ width: vw * scale, height: vh * scale }}>
         <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: vw }}>
-          <iframe ref={iframeRef} src="/site-preview" title="Xem trước trang chủ" onLoad={() => setLoading(false)} style={{ width: vw, height: vh, border: 0, display: "block" }} />
+          <iframe ref={iframeRef} src={src} title="Xem trước trang chủ" onLoad={() => setLoading(false)} style={{ width: vw, height: vh, border: 0, display: "block" }} />
         </div>
       </div>
     </div>
   );
 }
 
-function AddSection({ onAdd }: { onAdd: (t: SectionType) => void }) {
+function AddSection({ onAdd, scope }: { onAdd: (t: SectionType) => void; scope: SiteScope }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
       <Button variant="secondary" className="w-full border-dashed" onClick={() => setOpen((x) => !x)}><Plus className="size-4" /> Thêm khối nội dung</Button>
       {open && (
         <div className="absolute inset-x-0 top-12 z-20 grid grid-cols-2 gap-2 rounded-2xl border border-line bg-white p-2 shadow-lift">
-          {(Object.keys(SECTION_LABEL) as SectionType[]).map((t) => (
+          {(Object.keys(SECTION_LABEL) as SectionType[]).filter((t) => scope === "portal" || t !== "campaigns").map((t) => (
             <button key={t} onClick={() => { onAdd(t); setOpen(false); }} className="rounded-xl px-3 py-2.5 text-left text-sm font-medium hover:bg-stone-50">{SECTION_LABEL[t]}</button>
           ))}
         </div>
@@ -354,6 +368,14 @@ function SectionForm({ s, upd }: { s: HomeSection; upd: (p: Partial<HomeSection>
           <Field label="Tiêu đề"><Textarea rows={2} value={s.title} onChange={(e) => upd({ title: e.target.value })} /></Field>
           <Field label="Mô tả"><Textarea rows={2} value={s.desc} onChange={(e) => upd({ desc: e.target.value })} /></Field>
           <Field label="Chữ trên nút"><Input value={s.button} onChange={(e) => upd({ button: e.target.value })} /></Field>
+        </>
+      );
+    case "campaigns":
+      return (
+        <>
+          <Field label="Tiêu đề"><Input value={s.title} onChange={(e) => upd({ title: e.target.value })} /></Field>
+          <Field label="Mô tả"><Textarea rows={2} value={s.subtitle} onChange={(e) => upd({ subtitle: e.target.value })} /></Field>
+          <p className="rounded-xl bg-stone-50 p-3 text-xs text-ink-3">Tự động hiện các chiến dịch đã xuất bản của bạn, kèm ảnh thumbnail chia sẻ.</p>
         </>
       );
     case "text":

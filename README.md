@@ -44,6 +44,12 @@ Người tổ chức đăng ký tài khoản → tải frame/thiệp lên → tu
 - **Giao diện hệ thống** (`/admin/site`, chỉ Super Admin): tên thương hiệu, logo, favicon, màu chủ đạo/màu tối (áp toàn app qua biến CSS), SEO (title, description, ảnh chia sẻ mặc định) và nội dung trang chủ dạng khối — kéo thả sắp xếp, ẩn/hiện, nhân bản, thêm khối (Banner, Các bước, Lưới tính năng, Khối kêu gọi, Đoạn văn). Xem trước trực tiếp desktop/mobile; **bấm vào phần bất kỳ trên bản xem trước để mở đúng khối cần sửa**.
 - **Thumbnail chia sẻ link** (`/api/og/<slug>`): mặc định tự ghép frame của chiến dịch + tiêu đề + nút theo màu chiến dịch (1200×630, font tiếng Việt), hoặc chọn Chỉ frame / Ảnh bìa / Ảnh riêng trong tab Chia sẻ. `/api/og/site` là ảnh mặc định của hệ thống.
 
+## Cập nhật v5 — Thương hiệu riêng cho khách hàng
+
+- Tính năng gói mới **“Thương hiệu riêng”** (`whiteLabel`): Super Admin tick trong `/admin/plans` (hoặc ghi đè cho từng tài khoản).
+- Khách hàng có tab **Thương hiệu** (`/dashboard/brand`) — cùng trình chỉnh sửa như Giao diện hệ thống: tên, logo, favicon, màu, SEO, ảnh chia sẻ, trang chủ khối kéo thả (+ khối **Danh sách chiến dịch** tự liệt kê các chiến dịch đã xuất bản).
+- Áp dụng cho: trang chủ riêng `/p/<mã>` và **tên miền riêng** (khi tên miền không gắn chiến dịch cụ thể), dashboard của khách (logo + màu), favicon & tên trang khi chia sẻ link chiến dịch, logo trên thumbnail chia sẻ tự ghép, ảnh chia sẻ `/api/og/brand-<mã>`.
+
 ## Kiến trúc
 
 - **Next.js 15** (App Router, React 19) + Tailwind CSS 4 — một codebase cho UI và API.

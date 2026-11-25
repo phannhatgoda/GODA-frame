@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { SiteSettings } from "@/lib/siteTypes";
-import { HomeView } from "./HomeView";
+import { HomeView, type PortalCampaign } from "./HomeView";
 
-export function SitePreviewClient({ initial }: { initial: SiteSettings }) {
+export function SitePreviewClient({ initial, scope = "platform", campaigns = [] }: { initial: SiteSettings; scope?: "platform" | "portal"; campaigns?: PortalCampaign[] }) {
   const [site, setSite] = useState(initial);
   const [sel, setSel] = useState<string | null>(null);
   useEffect(() => {
@@ -24,5 +24,5 @@ export function SitePreviewClient({ initial }: { initial: SiteSettings }) {
     window.parent?.postMessage({ type: "goda:site-ready" }, location.origin);
     return () => window.removeEventListener("message", on);
   }, []);
-  return <HomeView site={site} loggedIn={false} editable selected={sel} />;
+  return <HomeView site={site} loggedIn={false} editable selected={sel} scope={scope} campaigns={campaigns} />;
 }

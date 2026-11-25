@@ -1,6 +1,9 @@
 import { ImageResponse } from "next/og";
 import { getCampaignBySlug } from "@/lib/campaigns";
-import { getSite } from "@/lib/site";
+import { getSite, getUserSite } from "@/lib/site";
+import { one } from "@/lib/db";
+import { featuresFor } from "@/lib/plans";
+import { defaultPortal } from "@/lib/siteTypes";
 import { readAsset } from "@/lib/storage";
 import { isDark } from "@/lib/color";
 
@@ -46,7 +49,20 @@ const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…"
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const slug = (await params).slug;
   const origin = new URL(req.url).origin;
-  const site = await getSite();
+  const platform = await getSite();
+  /** brand shown on the card: the platform's, or the campaign owner's own brand (Thương hiệu riêng) */
+  let site = platform;
+  async function ownerBrand(ownerId: string, fallback = false) {
+    const o = await one<{ role: string; plan: string; features: string; name: string; org_name: string | null }>("SELECT role, plan, features, name, org_name FROM users WHERE id = ?", [ownerId]);
+    if (!o || !(await featuresFor(o)).whiteLabel) return null;
+    return (await getUserSite(ownerId)) ?? (fallback ? defaultPortal(o.org_name || o.name) : null);
+  }
+  const isPortal = slug.startsWith("brand-");
+  if (isPortal) {
+    const b = await ownerBrand(slug.slice(6), true);
+    if (!b) return new Response("Not found", { status: 404 });
+    site = b;
+  }
   const headers = { "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800" };
 
   let bg = site.brand.ink, fg = "#FFFFFF", accent = site.brand.primary, accent2 = site.brand.primary;
@@ -54,16 +70,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   let ratio = 1;
   let rawFrame = "/samples/avatar-ring.svg";
 
-  if (slug !== "site") {
+  if (slug !== "site" && !isPortal) {
     const c = await getCampaignBySlug(slug);
     if (!c || c.status === "draft") return new Response("Not found", { status: 404 });
+    site = (await ownerBrand(c.owner_id)) ?? platform;
     const t = c.theme;
     bg = t.background; accent = t.template === "festive" ? t.secondary : t.primary; accent2 = t.secondary;
     fg = isDark(bg) ? "#FFFFFF" : t.text;
     title = t.headline || c.title; sub = t.subheadline; tag = t.hashtag;
     ratio = c.config.width / c.config.height;
     if (c.config.frameUrl) rawFrame = c.config.frameUrl;
-    [frameSrc, logo] = await Promise.all([inline(c.config.frameUrl, origin), inline(t.logoUrl, origin)]);
+    [frameSrc, logo] = await Promise.all([inline(c.config.frameUrl, origin), inline(t.logoUrl || (site !== platform ? site.brand.logoUrl : ""), origin)]);
   } else {
     logo = await inline(site.brand.logoUrl, origin);
     title = site.seo.title || site.brand.name;
@@ -96,10 +113,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {logo ? <img src={logo} height={56} style={{ objectFit: "contain", maxWidth: 260 }} alt="" /> : <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: accent }}>{site.brand.name}</div>}
             <div style={{ display: "flex", fontSize: title.length > 40 ? 50 : 62, fontWeight: 800, lineHeight: 1.08, letterSpacing: -1 }}>{title}</div>
-            {slug === "site" && <div style={{ display: "flex", width: 120, height: 8, borderRadius: 8, background: accent }} />}
+            {(slug === "site" || isPortal) && <div style={{ display: "flex", width: 120, height: 8, borderRadius: 8, background: accent }} />}
             {sub && <div style={{ display: "flex", fontSize: 26, fontWeight: 500, lineHeight: 1.35, opacity: 0.78 }}>{sub}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8 }}>
-              {slug !== "site" && <div style={{ display: "flex", background: accent, color: isDark(accent) ? "#fff" : "#111", fontSize: 24, fontWeight: 800, padding: "14px 26px", borderRadius: 16 }}>Tạo ảnh của bạn →</div>}
+              {slug !== "site" && !isPortal && <div style={{ display: "flex", background: accent, color: isDark(accent) ? "#fff" : "#111", fontSize: 24, fontWeight: 800, padding: "14px 26px", borderRadius: 16 }}>Tạo ảnh của bạn →</div>}
               {tag && <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: accent }}>{clip(tag, 40)}</div>}
             </div>
           </div>

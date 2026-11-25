@@ -4,7 +4,7 @@ const n = z.number().int().min(0).max(1_000_000);
 export const featureSchema = z.object({
   maxCampaigns: n, maxStorageMB: n, maxDomains: n,
   invitation: z.boolean(), aiFace: z.boolean(), aiBackground: z.boolean(), aiCaption: z.boolean(),
-  premiumTemplates: z.boolean(), removeBranding: z.boolean(), exportCsv: z.boolean(),
+  premiumTemplates: z.boolean(), removeBranding: z.boolean(), whiteLabel: z.boolean().default(false), exportCsv: z.boolean(),
   customDomain: z.boolean(), embed: z.boolean(), api: z.boolean(),
 });
 

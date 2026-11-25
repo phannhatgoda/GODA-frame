@@ -4,7 +4,8 @@ import { campaignMetadata, loadCampaign, renderCampaign } from "@/lib/guestPage"
 type P = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: P): Promise<Metadata> {
-  return campaignMetadata((await loadCampaign({ slug: (await params).slug }))?.c);
+  const d = await loadCampaign({ slug: (await params).slug });
+  return campaignMetadata(d?.c, d?.brand);
 }
 
 export default async function Page({ params }: P) {

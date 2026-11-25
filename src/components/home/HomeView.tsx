@@ -27,7 +27,10 @@ function Highlight({ text, word }: { text: string; word: string }) {
  * Homepage rendered from the Super Admin's settings.
  * `editable` (admin preview iframe): hover outlines + click selects the section in the editor.
  */
-export function HomeView({ site, loggedIn, editable, selected }: { site: SiteSettings; loggedIn: boolean; editable?: boolean; selected?: string | null }) {
+export type PortalCampaign = { slug: string; title: string; type: string; href: string; image: string };
+
+export function HomeView({ site, loggedIn, editable, selected, scope = "platform", campaigns = [] }: { site: SiteSettings; loggedIn: boolean; editable?: boolean; selected?: string | null; scope?: "platform" | "portal"; campaigns?: PortalCampaign[] }) {
+  const portal = scope === "portal";
   const brand = { name: site.brand.name, logoUrl: site.brand.logoUrl };
   const pick = (id: string) => (e: React.MouseEvent) => {
     if (!editable) return;
@@ -46,7 +49,7 @@ export function HomeView({ site, loggedIn, editable, selected }: { site: SiteSet
       {children}
     </section>
   );
-  const href = (primary: boolean) => (primary ? (loggedIn ? "/dashboard/new" : "/register") : "#how");
+  const href = (primary: boolean) => (portal ? "#campaigns" : primary ? (loggedIn ? "/dashboard/new" : "/register") : "#how");
 
   return (
     <div className="min-h-dvh overflow-x-hidden">
@@ -58,7 +61,9 @@ export function HomeView({ site, loggedIn, editable, selected }: { site: SiteSet
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <Logo brand={brand} />
           <nav className="flex items-center gap-2">
-            {loggedIn ? (
+            {portal ? (
+              campaigns.length > 0 && <a href="#campaigns" className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white">Tạo ảnh ngay</a>
+            ) : loggedIn ? (
               <Link href="/dashboard" className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white">Vào Dashboard</Link>
             ) : (
               <>
@@ -95,14 +100,15 @@ export function HomeView({ site, loggedIn, editable, selected }: { site: SiteSet
                       {s.ctaSecondary && <a href={href(false)} className="inline-flex h-12 items-center rounded-xl border border-line bg-white px-6 font-medium shadow-soft">{s.ctaSecondary}</a>}
                     </div>
                     <div className="mt-8 flex items-center gap-6 text-sm text-ink-3">
-                      <span className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-ok" /> Tuân thủ quyền riêng tư</span>
+                      <span className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-ok" /> {portal ? "Ảnh xử lý ngay trên máy bạn" : "Tuân thủ quyền riêng tư"}</span>
                       <span className="flex items-center gap-1.5"><Users className="size-4" /> Không cần cài app</span>
                     </div>
                   </div>
                   <div className="relative mx-auto w-full max-w-md animate-pop">
-                    {s.image ? (
+                    {s.image || (portal && campaigns[0]) ? (
+                      // portals default to their newest campaign's share card instead of the GODA mock-up
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.image} alt="" className="w-full rounded-[36px] border border-line bg-white object-cover shadow-lift" />
+                      <img src={s.image || campaigns[0].image} alt="" className="w-full rounded-[36px] border border-line bg-white object-cover shadow-lift" />
                     ) : (
                       <div className="rounded-[36px] border border-line bg-white p-3 shadow-lift">
                         <div className="rounded-[28px] bg-gradient-to-b from-orange-50 to-rose-50 p-6">
@@ -175,6 +181,34 @@ export function HomeView({ site, loggedIn, editable, selected }: { site: SiteSet
                     </Link>
                   )}
                 </div>
+              </div>,
+            );
+          case "campaigns":
+            if (!portal) return null;
+            return wrap(
+              s,
+              <div id="campaigns" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-16">
+                {s.title && <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{s.title}</h2>}
+                {s.subtitle && <p className="mt-2 text-ink-3">{s.subtitle}</p>}
+                {campaigns.length === 0 ? (
+                  <p className="mt-6 rounded-2xl border border-dashed border-line p-8 text-center text-ink-3">Chưa có chiến dịch nào đang mở.</p>
+                ) : (
+                  <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {campaigns.map((c) => (
+                      <a key={c.slug} href={editable ? undefined : c.href} className="group overflow-hidden rounded-2xl border border-line bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={c.image} alt="" loading="lazy" className="aspect-[1200/630] w-full bg-stone-100 object-cover" />
+                        <div className="flex items-center justify-between gap-3 p-4">
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-brand">{c.type === "invitation" ? "Thiệp mời" : "Frame avatar"}</div>
+                            <div className="truncate font-semibold">{c.title}</div>
+                          </div>
+                          <ArrowRight className="size-5 shrink-0 text-ink-3 transition group-hover:translate-x-1 group-hover:text-brand" />
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>,
             );
           case "text":
