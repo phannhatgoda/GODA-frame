@@ -4,7 +4,7 @@ import { one } from "@/lib/db";
 import { handle, ok, HttpError } from "@/lib/api";
 import { rateLimit } from "@/lib/ratelimit";
 import { getCampaignById } from "@/lib/campaigns";
-import { effectiveFeatures } from "@/lib/features";
+import { featuresFor } from "@/lib/plans";
 
 const schema = z.object({
   campaignId: z.string().max(40),
@@ -29,7 +29,7 @@ export const POST = handle(async (req: Request) => {
   const c = await getCampaignById(b.campaignId);
   if (!c || c.status !== "published") throw new HttpError(404, "Không tìm thấy");
   const owner = await one<{ plan: string; role: string; features: string }>("SELECT plan, role, features FROM users WHERE id = ?", [c.owner_id]);
-  const allowed = owner && effectiveFeatures(owner).aiCaption && c.config.ai.caption;
+  const allowed = owner && (await featuresFor(owner)).aiCaption && c.config.ai.caption;
   if (!allowed) throw new HttpError(403, "Tính năng chưa bật");
 
   const hashtag = c.theme.hashtag;

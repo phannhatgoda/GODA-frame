@@ -3,7 +3,8 @@ import { PageHeader } from "@/components/Shell";
 import { AccountForm } from "@/components/AccountForm";
 import { requireUser } from "@/lib/auth";
 import { one } from "@/lib/db";
-import { FEATURE_META, PLANS, type Features, type Plan } from "@/lib/features";
+import { FEATURE_META, type Features } from "@/lib/features";
+import { getPlans } from "@/lib/plans";
 
 export const metadata = { title: "Tài khoản" };
 
@@ -14,7 +15,8 @@ export default async function Page() {
     one<{ c: number }>("SELECT COUNT(*) AS c FROM campaigns WHERE owner_id = ?", [u.id]),
   ]);
   const mb = Number(used?.s || 0) / 1024 / 1024;
-  const plan = PLANS[(u.plan as Plan) in PLANS ? (u.plan as Plan) : "free"];
+  const plans = await getPlans();
+  const plan = plans.find((p) => p.id === u.plan) ?? { name: u.plan };
   return (
     <>
       <PageHeader title="Tài khoản" desc={u.email} />

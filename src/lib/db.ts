@@ -63,7 +63,42 @@ const SCHEMA = [
     detail TEXT,
     created_at BIGINT NOT NULL
   )`,
+  // v2 — admin-defined plans, custom domains, API keys
+  `CREATE TABLE IF NOT EXISTS plans (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    price TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    features TEXT NOT NULL DEFAULT '{}',
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    sort INTEGER NOT NULL DEFAULT 0,
+    created_at BIGINT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS domains (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    hostname TEXT NOT NULL UNIQUE,
+    campaign_id TEXT REFERENCES campaigns(id) ON DELETE SET NULL,
+    verify_token TEXT NOT NULL,
+    verified_at BIGINT,
+    created_at BIGINT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_domains_owner ON domains(owner_id)`,
+  `CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    prefix TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    created_at BIGINT NOT NULL,
+    last_used_at BIGINT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys(owner_id)`,
+  `CREATE TABLE IF NOT EXISTS schema_meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL)`,
 ];
+
+/** Bump when SCHEMA changes; every statement above must stay idempotent. */
+const SCHEMA_VERSION = 2;
 
 type Sql = ReturnType<typeof postgres>;
 const g = globalThis as unknown as { __godaSql?: Sql; __godaReady?: Promise<void> };
@@ -100,11 +135,19 @@ async function ready() {
     g.__godaReady = (async () => {
       const s = sql();
       // Fast path on warm DBs: one round-trip instead of re-running every DDL statement.
-      const [r] = await s.unsafe(`SELECT to_regclass('public.audit_logs') IS NOT NULL AS ok`);
-      if (r?.ok) return;
+      // (two queries: Postgres resolves table names at parse time, even inside an untaken CASE branch)
+      const [t] = await s.unsafe(`SELECT to_regclass('public.schema_meta') IS NOT NULL AS ok`);
+      if (t?.ok) {
+        const [r] = await s.unsafe(`SELECT v FROM schema_meta WHERE k = 'version'`);
+        if (Number(r?.v) >= SCHEMA_VERSION) return;
+      }
       await s.begin(async (tx) => {
         await tx.unsafe(`SELECT pg_advisory_xact_lock(424242)`); // avoid races between cold starts
         for (const stmt of SCHEMA) await tx.unsafe(stmt);
+        await seedPlans(tx);
+        await tx.unsafe(
+          `INSERT INTO schema_meta (k, v) VALUES ('version', ${SCHEMA_VERSION}) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v`,
+        );
       });
     })().catch((e) => {
       g.__godaReady = undefined;
@@ -112,6 +155,19 @@ async function ready() {
     });
   }
   return g.__godaReady;
+}
+
+async function seedPlans(tx: { unsafe: Sql["unsafe"] }) {
+  const [c] = await tx.unsafe(`SELECT COUNT(*) AS n FROM plans`);
+  if (Number(c?.n) > 0) return;
+  const { DEFAULT_PLANS } = await import("./features");
+  let i = 0;
+  for (const p of DEFAULT_PLANS) {
+    await tx.unsafe(
+      `INSERT INTO plans (id, name, price, description, features, is_default, sort, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [p.id, p.name, p.price, p.description, JSON.stringify(p.features), p.id === "free", i++, Date.now()],
+    );
+  }
 }
 
 export type Row = Record<string, unknown>;

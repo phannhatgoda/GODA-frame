@@ -61,9 +61,11 @@ const url = z
 const font = z.enum(["be-vietnam", "inter", "montserrat", "playfair", "lora", "dancing"]);
 
 export const themeSchema = z.object({
-  template: z.enum(["aura", "bold", "studio", "paper"]),
+  template: z.enum(["aura", "bold", "glass", "festive", "mono", "studio", "paper", "neon"]),
   primary: color,
+  secondary: color.default("#FFD6E7"),
   background: color,
+  bgStyle: z.enum(["solid", "gradient", "mesh", "image"]).default("solid"),
   text: color,
   font,
   radius: z.number().min(0).max(40),

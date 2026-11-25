@@ -92,8 +92,9 @@ export function fitText(ctx: CanvasRenderingContext2D, t: TextField, text: strin
   return size;
 }
 
-function drawTexts(ctx: CanvasRenderingContext2D, cfg: FrameConfig, values: Record<string, string>, guides: boolean) {
+function drawTexts(ctx: CanvasRenderingContext2D, cfg: FrameConfig, values: Record<string, string>, guides: boolean, hide?: string | null) {
   for (const t of cfg.texts) {
+    if (t.id === hide) continue;
     let text = (values[t.id] ?? "").trim() || t.defaultValue || (guides ? t.placeholder : "");
     if (!text) continue;
     if (t.uppercase) text = text.toLocaleUpperCase("vi-VN");
@@ -114,6 +115,7 @@ export interface RenderOpts {
   values: Record<string, string>;
   guides?: boolean; // show placeholders + slot outline (editor)
   selected?: string | null;
+  hideText?: string | null; // field currently being edited inline
 }
 
 export function render(ctx: CanvasRenderingContext2D, cfg: FrameConfig, o: RenderOpts) {
@@ -124,7 +126,7 @@ export function render(ctx: CanvasRenderingContext2D, cfg: FrameConfig, o: Rende
   if (cfg.photo.layer === "below") drawPhoto(ctx, cfg, o.photo);
   if (o.frame) ctx.drawImage(o.frame, 0, 0, W, H);
   if (cfg.photo.layer === "above") drawPhoto(ctx, cfg, o.photo);
-  drawTexts(ctx, cfg, o.values, !!o.guides);
+  drawTexts(ctx, cfg, o.values, !!o.guides, o.hideText);
 
   if (o.guides) {
     const lw = Math.max(2, W / 360);

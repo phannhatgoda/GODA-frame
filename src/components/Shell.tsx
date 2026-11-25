@@ -1,10 +1,10 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, LayoutGrid, LogOut, Plus, ScrollText, Shield, UserRound, Users, Layers } from "lucide-react";
+import { BarChart3, Code2, Globe, LayoutGrid, LogOut, Package, Plus, ScrollText, Shield, UserRound, Users, Layers } from "lucide-react";
 import { cx, Logo } from "./ui";
 
-const ICONS = { grid: LayoutGrid, plus: Plus, user: UserRound, shield: Shield, users: Users, layers: Layers, chart: BarChart3, log: ScrollText };
+const ICONS = { package: Package, globe: Globe, code: Code2, grid: LayoutGrid, plus: Plus, user: UserRound, shield: Shield, users: Users, layers: Layers, chart: BarChart3, log: ScrollText };
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; exact?: boolean };
 
 export function Shell({ nav, user, children, area }: { nav: NavItem[]; user: { name: string; email: string; role: string }; children: React.ReactNode; area: "user" | "admin" }) {

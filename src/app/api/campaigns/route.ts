@@ -2,13 +2,13 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { one, run, audit } from "@/lib/db";
 import { apiUser, handle, ok, HttpError } from "@/lib/api";
-import { defaultConfig, defaultTheme } from "@/lib/types";
+import { defaultConfig, defaultTheme, TEMPLATE_PRESETS, TEMPLATES } from "@/lib/types";
 import { slugify, withSuffix } from "@/lib/slug";
 
 const schema = z.object({
   type: z.enum(["avatar", "invitation"]),
   title: z.string().trim().min(2, "Tên chiến dịch tối thiểu 2 ký tự").max(100),
-  template: z.enum(["aura", "bold", "studio", "paper"]).optional(),
+  template: z.enum(["aura", "bold", "glass", "festive", "mono", "studio", "paper", "neon"]).optional(),
 });
 
 export const POST = handle(async (req: Request) => {
@@ -20,8 +20,9 @@ export const POST = handle(async (req: Request) => {
   if (body.type === "invitation" && !user.perms.invitation) throw new HttpError(403, "Tài khoản chưa được mở tính năng Thiệp mời");
 
   const theme = defaultTheme(body.type, body.title);
-  if (body.template) theme.template = body.template;
-  if (!user.perms.premiumTemplates && (theme.template === "studio" || theme.template === "paper")) theme.template = body.template === "bold" ? "bold" : "aura";
+  let tpl = body.template ?? theme.template;
+  if (TEMPLATES[tpl].premium && !user.perms.premiumTemplates) tpl = "aura";
+  Object.assign(theme, { template: tpl }, TEMPLATE_PRESETS[tpl]);
   const config = defaultConfig(body.type);
 
   const id = nanoid(12);

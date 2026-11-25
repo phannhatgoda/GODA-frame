@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCampaignBySlug } from "@/lib/campaigns";
 import { one } from "@/lib/db";
-import { effectiveFeatures } from "@/lib/features";
+import { featuresFor } from "@/lib/plans";
 import { getUser, isAdmin } from "@/lib/auth";
 import { GuestView } from "@/components/guest/GuestView";
 
@@ -13,7 +13,7 @@ async function load(slug: string) {
   if (!c) return null;
   const owner = await one<{ plan: string; role: string; features: string; status: string }>("SELECT plan, role, features, status FROM users WHERE id = ?", [c.owner_id]);
   if (!owner) return null;
-  const perms = effectiveFeatures(owner);
+  const perms = await featuresFor(owner);
   return { c, owner, perms };
 }
 
@@ -58,8 +58,8 @@ export default async function Page({ params }: P) {
   return (
     <>
       {!live && (
-        <div className="sticky top-0 z-40 bg-amber-400 px-4 py-2 text-center text-sm font-semibold text-amber-950">
-          Bản xem trước — trang chưa xuất bản, khách chưa truy cập được. Thống kê không được ghi nhận.
+        <div className="pointer-events-none fixed left-1/2 top-2 z-[60] -translate-x-1/2 rounded-full bg-amber-400 px-3 py-1 text-[11px] font-semibold text-amber-950 shadow-lg">
+          Bản xem trước — chưa xuất bản
         </div>
       )}
       <GuestView campaign={pub} allowed={allowed} poweredBy={c.theme.showPoweredBy || !perms.removeBranding} preview={!live} />

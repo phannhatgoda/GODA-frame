@@ -4,6 +4,7 @@ import { apiUser, handle, ok, HttpError } from "@/lib/api";
 import { isAdmin, type SessionUser } from "@/lib/auth";
 import { configSchema, getCampaignById, themeSchema } from "@/lib/campaigns";
 import { slugify } from "@/lib/slug";
+import { TEMPLATES } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -43,7 +44,7 @@ export const PATCH = handle(async (req: Request, { params }: Ctx) => {
 
   const theme = body.theme ?? c.theme;
   if (!user.perms.removeBranding) theme.showPoweredBy = true;
-  if (!user.perms.premiumTemplates && (theme.template === "studio" || theme.template === "paper") && body.theme)
+  if (!user.perms.premiumTemplates && TEMPLATES[theme.template]?.premium && body.theme)
     throw new HttpError(403, "Giao diện này thuộc gói cao cấp");
 
   await run("UPDATE campaigns SET title=?, status=?, slug=?, theme=?, config=?, updated_at=? WHERE id=?", [

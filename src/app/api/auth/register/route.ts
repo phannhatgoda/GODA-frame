@@ -4,6 +4,7 @@ import { one, run, audit } from "@/lib/db";
 import { createSession, hashPassword } from "@/lib/auth";
 import { handle, ok, HttpError } from "@/lib/api";
 import { rateLimit } from "@/lib/ratelimit";
+import { defaultPlanId } from "@/lib/plans";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Vui lòng nhập họ tên").max(80),
@@ -24,7 +25,7 @@ export const POST = handle(async (req: Request) => {
   const id = nanoid(12);
   await run(
     "INSERT INTO users (id,email,name,org_name,password_hash,role,status,plan,features,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-    [id, body.email, body.name, body.orgName || null, await hashPassword(body.password), isSuper ? "superadmin" : "user", "active", isSuper ? "business" : "free", "{}", Date.now()],
+    [id, body.email, body.name, body.orgName || null, await hashPassword(body.password), isSuper ? "superadmin" : "user", "active", isSuper ? "business" : await defaultPlanId(), "{}", Date.now()],
   );
   await audit(id, "user.register", id);
   await createSession(id);

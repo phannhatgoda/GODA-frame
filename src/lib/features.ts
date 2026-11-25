@@ -1,9 +1,9 @@
-export type Plan = "free" | "pro" | "business";
 export type Role = "superadmin" | "admin" | "user";
 
 export interface Features {
   maxCampaigns: number;
   maxStorageMB: number;
+  maxDomains: number;
   invitation: boolean;
   aiFace: boolean;
   aiBackground: boolean;
@@ -11,53 +11,87 @@ export interface Features {
   premiumTemplates: boolean;
   removeBranding: boolean;
   exportCsv: boolean;
+  customDomain: boolean;
+  embed: boolean;
+  api: boolean;
 }
 
-export const FEATURE_META: Record<keyof Features, { label: string; hint: string; kind: "number" | "bool" }> = {
+export type FeatureKey = keyof Features;
+
+export const FEATURE_GROUPS: { title: string; keys: FeatureKey[] }[] = [
+  { title: "Hạn mức", keys: ["maxCampaigns", "maxStorageMB", "maxDomains"] },
+  { title: "Sản phẩm", keys: ["invitation", "premiumTemplates", "removeBranding"] },
+  { title: "AI", keys: ["aiFace", "aiBackground", "aiCaption"] },
+  { title: "Tích hợp & dữ liệu", keys: ["customDomain", "embed", "api", "exportCsv"] },
+];
+
+export const FEATURE_META: Record<FeatureKey, { label: string; hint: string; kind: "number" | "bool" }> = {
   maxCampaigns: { label: "Số chiến dịch tối đa", hint: "Số frame/thiệp được tạo", kind: "number" },
   maxStorageMB: { label: "Dung lượng lưu trữ (MB)", hint: "Frame, logo, ảnh bìa", kind: "number" },
+  maxDomains: { label: "Số tên miền riêng", hint: "Áp dụng khi bật Tên miền riêng", kind: "number" },
   invitation: { label: "Thiệp mời", hint: "Tạo thiệp có trường tên khách", kind: "bool" },
+  premiumTemplates: { label: "Giao diện cao cấp", hint: "Studio, Paper, Neon", kind: "bool" },
+  removeBranding: { label: "Ẩn 'Powered by GODA'", hint: "White-label", kind: "bool" },
   aiFace: { label: "AI căn khuôn mặt", hint: "Tự nhận diện & căn mặt vào khung", kind: "bool" },
   aiBackground: { label: "AI tách nền", hint: "Xoá phông, thay nền, xoá phông mờ", kind: "bool" },
   aiCaption: { label: "AI viết caption", hint: "Gợi ý caption đăng social", kind: "bool" },
-  premiumTemplates: { label: "Giao diện cao cấp", hint: "Mẫu Studio, Paper", kind: "bool" },
-  removeBranding: { label: "Ẩn 'Powered by GODA'", hint: "White-label", kind: "bool" },
+  customDomain: { label: "Tên miền riêng", hint: "frame.congty.vn qua CNAME", kind: "bool" },
+  embed: { label: "Nhúng vào website", hint: "Mã iframe / widget cho landing page", kind: "bool" },
+  api: { label: "API & API key", hint: "Lấy số liệu tự động qua REST API", kind: "bool" },
   exportCsv: { label: "Xuất dữ liệu CSV", hint: "Tải thống kê chi tiết", kind: "bool" },
 };
 
-export const PLANS: Record<Plan, { name: string; price: string; features: Features }> = {
-  free: {
-    name: "Free",
-    price: "0đ",
-    features: {
-      maxCampaigns: 2, maxStorageMB: 50, invitation: true, aiFace: true, aiBackground: false,
-      aiCaption: false, premiumTemplates: false, removeBranding: false, exportCsv: false,
-    },
-  },
-  pro: {
-    name: "Pro",
-    price: "Liên hệ",
-    features: {
-      maxCampaigns: 15, maxStorageMB: 500, invitation: true, aiFace: true, aiBackground: true,
-      aiCaption: true, premiumTemplates: true, removeBranding: false, exportCsv: true,
-    },
-  },
-  business: {
-    name: "Business",
-    price: "Liên hệ",
-    features: {
-      maxCampaigns: 999, maxStorageMB: 5000, invitation: true, aiFace: true, aiBackground: true,
-      aiCaption: true, premiumTemplates: true, removeBranding: true, exportCsv: true,
-    },
-  },
+export const ALL_FEATURES: Features = {
+  maxCampaigns: 9999, maxStorageMB: 100000, maxDomains: 100, invitation: true, aiFace: true, aiBackground: true,
+  aiCaption: true, premiumTemplates: true, removeBranding: true, exportCsv: true, customDomain: true, embed: true, api: true,
 };
 
-export function effectiveFeatures(user: { plan: string; role: string; features: string | Partial<Features> }): Features {
-  if (user.role === "superadmin" || user.role === "admin") return { ...PLANS.business.features };
-  const base = PLANS[(user.plan as Plan) in PLANS ? (user.plan as Plan) : "free"].features;
-  let overrides: Partial<Features> = {};
+export const NO_FEATURES: Features = {
+  maxCampaigns: 0, maxStorageMB: 0, maxDomains: 0, invitation: false, aiFace: false, aiBackground: false,
+  aiCaption: false, premiumTemplates: false, removeBranding: false, exportCsv: false, customDomain: false, embed: false, api: false,
+};
+
+export interface PlanDef {
+  id: string;
+  name: string;
+  price: string;
+  description: string;
+  features: Features;
+  is_default?: boolean;
+  sort?: number;
+}
+
+/** Seeded once into the `plans` table; afterwards the Super Admin edits plans in /admin/plans. */
+export const DEFAULT_PLANS: PlanDef[] = [
+  {
+    id: "free", name: "Free", price: "0đ", description: "Dùng thử cho sự kiện nhỏ",
+    features: { ...NO_FEATURES, maxCampaigns: 2, maxStorageMB: 50, invitation: true, aiFace: true, embed: true },
+  },
+  {
+    id: "pro", name: "Pro", price: "Liên hệ", description: "Cho phòng truyền thông nội bộ",
+    features: { ...ALL_FEATURES, maxCampaigns: 15, maxStorageMB: 500, maxDomains: 1, removeBranding: false, api: false },
+  },
+  {
+    id: "business", name: "Business", price: "Liên hệ", description: "White-label, tên miền & API",
+    features: { ...ALL_FEATURES, maxCampaigns: 999, maxStorageMB: 5000, maxDomains: 10 },
+  },
+];
+
+function parse(raw: unknown): Partial<Features> {
+  if (!raw) return {};
+  if (typeof raw === "object") return raw as Partial<Features>;
   try {
-    overrides = typeof user.features === "string" ? JSON.parse(user.features || "{}") : user.features;
-  } catch {}
-  return { ...base, ...overrides };
+    return JSON.parse(String(raw));
+  } catch {
+    return {};
+  }
+}
+
+/** plan features (from DB) + per-user overrides. Admins always get everything. */
+export function resolveFeatures(
+  user: { role: string; features: string | Partial<Features> },
+  plan: { features: string | Partial<Features> } | null | undefined,
+): Features {
+  if (user.role === "superadmin" || user.role === "admin") return { ...ALL_FEATURES };
+  return { ...NO_FEATURES, ...parse(plan?.features), ...parse(user.features) };
 }

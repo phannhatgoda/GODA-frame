@@ -1,4 +1,5 @@
-export type TemplateId = "aura" | "bold" | "studio" | "paper";
+export type TemplateId = "aura" | "bold" | "glass" | "festive" | "mono" | "studio" | "paper" | "neon";
+export type BgStyle = "solid" | "gradient" | "mesh" | "image";
 export type FontId = "be-vietnam" | "inter" | "montserrat" | "playfair" | "lora" | "dancing";
 
 export const FONTS: Record<FontId, { label: string; css: string; google: string }> = {
@@ -11,10 +12,26 @@ export const FONTS: Record<FontId, { label: string; css: string; google: string 
 };
 
 export const TEMPLATES: Record<TemplateId, { name: string; desc: string; premium: boolean }> = {
-  aura: { name: "Aura", desc: "Tối giản, nền gradient mềm, tập trung vào frame", premium: false },
-  bold: { name: "Bold", desc: "Ảnh bìa lớn, khối màu thương hiệu mạnh", premium: false },
-  studio: { name: "Studio", desc: "Nền tối sang trọng, bố cục 2 cột như app", premium: true },
-  paper: { name: "Paper", desc: "Thanh lịch kiểu thiệp, chữ serif, nền kem", premium: true },
+  aura: { name: "Aura", desc: "Tối giản, gradient mềm", premium: false },
+  bold: { name: "Bold", desc: "Dải màu thương hiệu mạnh", premium: false },
+  glass: { name: "Glass", desc: "Kính mờ trên nền rực rỡ", premium: false },
+  festive: { name: "Lễ hội", desc: "Đỏ – vàng, hợp Tết & Gala", premium: false },
+  mono: { name: "Mono", desc: "Trắng đen, góc vuông, hiện đại", premium: false },
+  studio: { name: "Studio", desc: "Nền tối sang trọng", premium: true },
+  paper: { name: "Paper", desc: "Thanh lịch kiểu thiệp, chữ serif", premium: true },
+  neon: { name: "Neon", desc: "Đêm nhạc, phát sáng", premium: true },
+};
+
+/** Recommended starting colours per template — applied when the organizer picks a template. */
+export const TEMPLATE_PRESETS: Record<TemplateId, Pick<Theme, "primary" | "secondary" | "background" | "text" | "font" | "bgStyle" | "radius">> = {
+  aura: { primary: "#FF5A1F", secondary: "#FFD6E7", background: "#FFF7F2", text: "#17120E", font: "be-vietnam", bgStyle: "mesh", radius: 20 },
+  bold: { primary: "#2346FF", secondary: "#00B3A4", background: "#F4F6FF", text: "#0B1233", font: "montserrat", bgStyle: "solid", radius: 16 },
+  glass: { primary: "#7C3AED", secondary: "#EC4899", background: "#3B82F6", text: "#FFFFFF", font: "be-vietnam", bgStyle: "gradient", radius: 24 },
+  festive: { primary: "#C8102E", secondary: "#F5C542", background: "#7F0A1C", text: "#FFF6E0", font: "playfair", bgStyle: "gradient", radius: 18 },
+  mono: { primary: "#111111", secondary: "#E5E5E5", background: "#FFFFFF", text: "#111111", font: "inter", bgStyle: "solid", radius: 0 },
+  studio: { primary: "#FF5A1F", secondary: "#7C3AED", background: "#0F0F12", text: "#F5F5F4", font: "be-vietnam", bgStyle: "mesh", radius: 20 },
+  paper: { primary: "#B4532A", secondary: "#E9D8BF", background: "#FBF7F0", text: "#2A1A10", font: "playfair", bgStyle: "solid", radius: 10 },
+  neon: { primary: "#22D3EE", secondary: "#F0ABFC", background: "#05010D", text: "#F5F3FF", font: "montserrat", bgStyle: "mesh", radius: 18 },
 };
 
 export interface ThemeLink { label: string; url: string }
@@ -22,7 +39,9 @@ export interface ThemeLink { label: string; url: string }
 export interface Theme {
   template: TemplateId;
   primary: string;
+  secondary: string;
   background: string;
+  bgStyle: BgStyle;
   text: string;
   font: FontId;
   radius: number;
@@ -89,20 +108,17 @@ export interface CampaignPublic {
 
 export function defaultTheme(type: "avatar" | "invitation", title: string): Theme {
   const inv = type === "invitation";
+  const tpl: TemplateId = inv ? "paper" : "aura";
   return {
-    template: inv ? "paper" : "aura",
-    primary: inv ? "#B4532A" : "#FF5A1F",
-    background: inv ? "#FBF7F0" : "#FFF7F2",
-    text: "#17120E",
-    font: inv ? "playfair" : "be-vietnam",
-    radius: 20,
+    template: tpl,
+    ...TEMPLATE_PRESETS[tpl],
     logoUrl: "",
     coverUrl: "",
     headline: title,
     subheadline: inv
-      ? "Nhập tên của bạn để nhận thiệp mời riêng, rồi lưu lại hoặc chia sẻ ngay."
-      : "Tải ảnh lên, AI tự căn khuôn mặt vào khung. Chỉ 10 giây để có avatar mới.",
-    ctaText: inv ? "Tạo thiệp của tôi" : "Chọn ảnh của bạn",
+      ? "Chạm vào ô tên trên thiệp để nhập, rồi lưu lại hoặc chia sẻ ngay."
+      : "Chạm vào khung để thêm ảnh — AI tự căn khuôn mặt. Chỉ 10 giây để có avatar mới.",
+    ctaText: inv ? "Tạo thiệp của tôi" : "Thêm ảnh của bạn",
     footerText: "© " + new Date().getFullYear() + " — Thực hiện bởi GODA.MEDIA",
     links: [],
     hashtag: "",

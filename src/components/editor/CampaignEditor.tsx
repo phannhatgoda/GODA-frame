@@ -10,7 +10,7 @@ import { api, Badge, Button, cx, Field, Input, Segmented, Select, Switch, Textar
 import { FramePlacer } from "./FramePlacer";
 import { TemplateThumb } from "../TemplateThumb";
 import { detectTransparentSlot, loadImage } from "@/lib/client/render";
-import { FONTS, TEMPLATES, type CampaignPublic, type FontId, type FrameConfig, type TemplateId, type TextField, type Theme } from "@/lib/types";
+import { FONTS, TEMPLATE_PRESETS, TEMPLATES, type BgStyle, type CampaignPublic, type FontId, type FrameConfig, type TemplateId, type TextField, type Theme } from "@/lib/types";
 import type { Features } from "@/lib/features";
 
 const SAMPLES = [
@@ -419,11 +419,12 @@ function ThemeTab({ theme, setTheme, perms }: { theme: Theme; setTheme: (p: Part
     <div className="space-y-5">
       <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
         <h3 className="font-semibold">Giao diện mẫu</h3>
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <p className="text-sm text-ink-3">Chọn mẫu sẽ áp bảng màu gợi ý — bạn vẫn tuỳ biến lại được bên dưới.</p>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(Object.keys(TEMPLATES) as TemplateId[]).map((id) => {
             const locked = TEMPLATES[id].premium && !perms.premiumTemplates;
             return (
-              <button key={id} disabled={locked} onClick={() => setTheme({ template: id })} className={cx("rounded-2xl border-2 p-1.5 text-left disabled:opacity-50", theme.template === id ? "border-brand" : "border-transparent hover:border-line")}>
+              <button key={id} disabled={locked} onClick={() => setTheme({ template: id, ...TEMPLATE_PRESETS[id] })} className={cx("rounded-2xl border-2 p-1.5 text-left disabled:opacity-50", theme.template === id ? "border-brand" : "border-transparent hover:border-line")}>
                 <TemplateThumb id={id} />
                 <div className="flex items-center justify-between px-1 pt-2 text-sm font-semibold">{TEMPLATES[id].name}{locked && <Lock className="size-3.5 text-ink-3" />}</div>
               </button>
@@ -441,13 +442,17 @@ function ThemeTab({ theme, setTheme, perms }: { theme: Theme; setTheme: (p: Part
             </button>
           ))}
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {([["primary", "Màu chủ đạo"], ["background", "Màu nền"], ["text", "Màu chữ"]] as const).map(([k, l]) => (
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {([["primary", "Màu chủ đạo"], ["secondary", "Màu phụ"], ["background", "Màu nền"], ["text", "Màu chữ"]] as const).map(([k, l]) => (
             <Field key={k} label={l}>
               <div className="flex items-center gap-2 rounded-xl border border-line p-1.5"><input type="color" value={theme[k]} onChange={(e) => setTheme({ [k]: e.target.value })} className="h-8 w-10" /><span className="font-mono text-xs text-ink-3">{theme[k]}</span></div>
             </Field>
           ))}
         </div>
+        <Field label="Kiểu nền trang" className="mt-4">
+          <Segmented<BgStyle> className="w-full" value={theme.bgStyle} onChange={(v) => setTheme({ bgStyle: v })} options={[{ value: "solid", label: "Màu trơn" }, { value: "gradient", label: "Gradient" }, { value: "mesh", label: "Mesh" }, { value: "image", label: "Ảnh nền" }]} />
+        </Field>
+        {theme.bgStyle === "image" && !theme.coverUrl && <p className="mt-2 text-xs text-amber-700">Tải “Ảnh bìa” bên dưới để dùng làm ảnh nền.</p>}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Font chữ trang">
             <Select value={theme.font} onChange={(e) => setTheme({ font: e.target.value as FontId })}>
@@ -458,7 +463,7 @@ function ThemeTab({ theme, setTheme, perms }: { theme: Theme; setTheme: (p: Part
             <input type="range" min={0} max={36} value={theme.radius} onChange={(e) => setTheme({ radius: +e.target.value })} className="mt-3 w-full" />
           </Field>
           <ImagePick label="Logo" value={theme.logoUrl} onChange={(u) => setTheme({ logoUrl: u })} hint="PNG nền trong suốt" />
-          <ImagePick label="Ảnh bìa" value={theme.coverUrl} onChange={(u) => setTheme({ coverUrl: u })} hint="Dùng cho giao diện Bold & ảnh chia sẻ link" />
+          <ImagePick label="Ảnh bìa / ảnh nền" value={theme.coverUrl} onChange={(u) => setTheme({ coverUrl: u })} hint="Dải bìa của mẫu Bold, kiểu nền “Ảnh nền” & ảnh khi chia sẻ link" />
         </div>
       </section>
 

@@ -4,7 +4,8 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { one, run } from "./db";
-import { effectiveFeatures, type Features, type Role } from "./features";
+import type { Features, Role } from "./features";
+import { featuresFor } from "./plans";
 
 export const SESSION_COOKIE = "goda_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
@@ -66,7 +67,7 @@ export async function getUser(): Promise<SessionUser | null> {
     const u = await one<DbUser>("SELECT * FROM users WHERE id = ?", [String(payload.uid)]);
     if (!u || u.status !== "active") return null;
     const { password_hash: _ph, ...rest } = u;
-    return { ...rest, perms: effectiveFeatures(u) };
+    return { ...rest, perms: await featuresFor(u) };
   } catch {
     return null;
   }

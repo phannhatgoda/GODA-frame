@@ -20,6 +20,42 @@ export function TemplateThumb({ id }: { id: TemplateId }) {
         <div className="mx-auto mt-2 h-4 w-[55%] rounded-md bg-stone-900" />
       </div>
     );
+  if (id === "glass")
+    return (
+      <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-gradient-to-br from-blue-500 via-violet-600 to-pink-500 p-2">
+        <div className="mx-auto mt-2 h-2 w-3/4 rounded bg-white/90" />
+        <div className="mx-auto mt-3 aspect-square w-[66%] rounded-2xl border border-white/40 bg-white/25 backdrop-blur" />
+        <div className="mx-auto mt-2 h-4 w-[66%] rounded-lg bg-white/80" />
+      </div>
+    );
+  if (id === "festive")
+    return (
+      <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-gradient-to-b from-red-700 to-red-950 p-2">
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "radial-gradient(#F5C542 1px, transparent 1.5px)", backgroundSize: "10px 10px" }} />
+        <div className="relative mx-auto mt-2 h-2 w-2/3 rounded bg-amber-300" />
+        <div className="relative mx-auto mt-3 aspect-square w-[64%] rounded-xl border-2 border-amber-300 bg-red-900" />
+        <div className="relative mx-auto mt-2 h-4 w-[64%] rounded-md bg-amber-400" />
+      </div>
+    );
+  if (id === "mono")
+    return (
+      <div className="relative aspect-[3/4] overflow-hidden rounded-xl border border-stone-200 bg-white p-2">
+        <div className="mt-2 h-2.5 w-3/4 bg-black" />
+        <div className="mt-1 h-1.5 w-1/2 bg-stone-300" />
+        <div className="mt-3 aspect-square w-full bg-stone-100 outline outline-1 outline-black" />
+        <div className="mt-2 h-4 w-full bg-black" />
+      </div>
+    );
+  if (id === "neon")
+    return (
+      <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-[#05010D] p-2">
+        <div className="absolute -left-6 top-4 size-20 rounded-full bg-cyan-400/40 blur-xl" />
+        <div className="absolute -right-6 bottom-4 size-20 rounded-full bg-fuchsia-400/40 blur-xl" />
+        <div className="relative mx-auto mt-2 h-2 w-2/3 rounded bg-cyan-300 shadow-[0_0_8px_#22d3ee]" />
+        <div className="relative mx-auto mt-3 aspect-square w-[64%] rounded-xl border-2 border-cyan-300 shadow-[0_0_12px_#22d3ee]" />
+        <div className="relative mx-auto mt-2 h-4 w-[64%] rounded-md bg-fuchsia-400 shadow-[0_0_10px_#f0abfc]" />
+      </div>
+    );
   if (id === "studio")
     return (
       <div className="relative grid aspect-[3/4] grid-cols-2 gap-1.5 overflow-hidden rounded-xl bg-stone-900 p-2">

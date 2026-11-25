@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 const nav: NavItem[] = [
   { href: "/admin", label: "Tổng quan", icon: "chart", exact: true },
   { href: "/admin/users", label: "Người dùng", icon: "users" },
+  { href: "/admin/plans", label: "Gói", icon: "package" },
   { href: "/admin/campaigns", label: "Chiến dịch", icon: "layers" },
   { href: "/admin/logs", label: "Nhật ký", icon: "log" },
 ];
