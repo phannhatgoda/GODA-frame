@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C98A4B"/><stop offset=".5" stop-color="#F1D3A2"/><stop offset="1" stop-color="#A8642D"/>
+    </linearGradient>
+    <radialGradient id="bg" cx=".5" cy=".35" r=".8">
+      <stop offset="0" stop-color="#FFFDF8"/><stop offset="1" stop-color="#F4EADB"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <rect x="48" y="48" width="984" height="1254" rx="8" fill="none" stroke="url(#gold)" stroke-width="4"/>
+  <rect x="68" y="68" width="944" height="1214" rx="4" fill="none" stroke="url(#gold)" stroke-width="1.5"/>
+  <g fill="url(#gold)">
+    <circle cx="540" cy="190" r="6"/><rect x="380" y="188" width="130" height="3"/><rect x="570" y="188" width="130" height="3"/>
+  </g>
+  <text x="540" y="300" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="34" letter-spacing="16" fill="#8A3B1D">THƯ MỜI</text>
+  <text x="540" y="420" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="88" fill="#2A1A10">Gala 2026</text>
+  <text x="540" y="490" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="34" fill="#6B4A33">Đêm tri ân &amp; vinh danh</text>
+  <text x="540" y="640" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="32" fill="#6B4A33">Trân trọng kính mời</text>
+  <rect x="240" y="800" width="600" height="2" fill="url(#gold)"/>
+  <text x="540" y="900" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="30" fill="#6B4A33">đến tham dự cùng chúng tôi</text>
+  <text x="540" y="1010" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" letter-spacing="4" fill="#2A1A10">18:30 · 20.12.2026</text>
+  <text x="540" y="1066" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#6B4A33">Trung tâm Hội nghị — Hà Nội</text>
+  <g fill="url(#gold)">
+    <circle cx="540" cy="1170" r="6"/><rect x="380" y="1168" width="130" height="3"/><rect x="570" y="1168" width="130" height="3"/>
+  </g>
+</svg>

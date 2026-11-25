@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+data/*
+!data/.gitkeep
+public/mediapipe
+.env
+.env*.local
+*.tsbuildinfo
+next-env.d.ts

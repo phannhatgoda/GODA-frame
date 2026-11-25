@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2346FF"/><stop offset="1" stop-color="#00B3A4"/>
+    </linearGradient>
+  </defs>
+  <path fill-rule="evenodd" fill="#fff" d="M0 0H1080V1080H0Z M44 44H1036V836H44Z"/>
+  <rect x="0" y="836" width="1080" height="244" fill="url(#b)"/>
+  <text x="80" y="935" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="64" fill="#fff">PROUD TO BE</text>
+  <text x="80" y="1020" font-family="Arial, Helvetica, sans-serif" font-weight="400" font-size="46" fill="#fff" opacity=".9">một phần của hành trình 2026</text>
+  <circle cx="960" cy="958" r="74" fill="#fff"/>
+  <text x="960" y="980" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="60" fill="#2346FF">G</text>
+  <rect x="44" y="44" width="992" height="792" fill="none" stroke="url(#b)" stroke-width="10"/>
+</svg>

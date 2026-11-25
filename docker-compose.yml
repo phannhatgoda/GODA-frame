@@ -1,0 +1,9 @@
+services:
+  goda-frame:
+    build: .
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    env_file: .env
+    volumes: ["goda-data:/app/data"]
+volumes:
+  goda-data:
