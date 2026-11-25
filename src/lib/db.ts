@@ -95,10 +95,20 @@ const SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys(owner_id)`,
   `CREATE TABLE IF NOT EXISTS schema_meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL)`,
+  // v3 — short-lived downloads for in-app browsers (Zalo, Facebook…) that cannot save blob: URLs
+  `CREATE TABLE IF NOT EXISTS temp_files (
+    id TEXT PRIMARY KEY,
+    campaign_id TEXT,
+    name TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    data BYTEA NOT NULL,
+    created_at BIGINT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_temp_files_time ON temp_files(created_at)`,
 ];
 
 /** Bump when SCHEMA changes; every statement above must stay idempotent. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 type Sql = ReturnType<typeof postgres>;
 const g = globalThis as unknown as { __godaSql?: Sql; __godaReady?: Promise<void> };

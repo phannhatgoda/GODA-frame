@@ -8,7 +8,7 @@ import { slugify, withSuffix } from "@/lib/slug";
 const schema = z.object({
   type: z.enum(["avatar", "invitation"]),
   title: z.string().trim().min(2, "Tên chiến dịch tối thiểu 2 ký tự").max(100),
-  template: z.enum(["aura", "bold", "glass", "festive", "mono", "studio", "paper", "neon"]).optional(),
+  template: z.enum(["aura", "bold", "glass", "festive", "mono", "studio", "paper", "neon", "custom"]).optional(),
 });
 
 export const POST = handle(async (req: Request) => {

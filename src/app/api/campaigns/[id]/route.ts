@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { one, run, audit } from "@/lib/db";
+import { all, one, run, audit } from "@/lib/db";
 import { apiUser, handle, ok, HttpError } from "@/lib/api";
 import { isAdmin, type SessionUser } from "@/lib/auth";
 import { configSchema, getCampaignById, themeSchema } from "@/lib/campaigns";
@@ -44,6 +44,15 @@ export const PATCH = handle(async (req: Request, { params }: Ctx) => {
 
   const theme = body.theme ?? c.theme;
   if (!user.perms.removeBranding) theme.showPoweredBy = true;
+  if (body.theme && !user.perms.premiumTemplates && theme.design?.customCss) theme.design.customCss = "";
+  if (body.theme?.companions?.length) {
+    const ids = [...new Set(theme.companions.map((x) => x.campaignId))].filter((id) => id !== c.id);
+    const ok = ids.length
+      ? await all<{ id: string }>(`SELECT id FROM campaigns WHERE owner_id = ? AND id IN (${ids.map(() => "?").join(",")})`, [c.owner_id, ...ids])
+      : [];
+    const allowed = new Set(ok.map((r) => r.id));
+    theme.companions = theme.companions.filter((x) => allowed.has(x.campaignId));
+  }
   if (!user.perms.premiumTemplates && TEMPLATES[theme.template]?.premium && body.theme)
     throw new HttpError(403, "Giao diện này thuộc gói cao cấp");
 

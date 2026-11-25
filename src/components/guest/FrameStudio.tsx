@@ -90,7 +90,17 @@ export interface StudioChrome {
   dark: boolean;
   /** class for floating surfaces (tool strip, panels) */
   surface: string;
+  /** mobile: brand info shown under the header (description, links) */
+  mobileInfo?: React.ReactNode;
+  /** mobile: tiny footer under the action buttons */
+  mobileFooter?: React.ReactNode;
+  /** switcher between companion experiences (invitation / avatar…) */
+  tabs?: React.ReactNode;
+  button: "solid" | "outline" | "pill";
 }
+
+/** Zalo, Facebook, Instagram, TikTok… in-app browsers cannot save blob: downloads. */
+const IN_APP = /Zalo|FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|BytedanceWebview|; wv\)/i;
 
 export function FrameStudio({
   campaign, allowed, preview, track, accent, chrome, embed,
@@ -117,7 +127,7 @@ export function FrameStudio({
   const [tool, setTool] = useState<Tool>(null);
   const [busy, setBusy] = useState("");
   const [hint, setHint] = useState("");
-  const [done, setDone] = useState<{ url: string; blob: Blob } | null>(null);
+  const [done, setDone] = useState<{ url: string; blob: Blob; server?: string } | null>(null);
   const [sheet, setSheet] = useState(false);
   const [filterId, setFilterId] = useState("none");
   const fontsReady = useFonts(cfg);
@@ -279,13 +289,13 @@ export function FrameStudio({
   const needPhoto = cfg.photo.enabled && !photo.img && campaign.type === "avatar";
   const canExport = !needPhoto && missing.length === 0 && !!frame;
 
-  async function makeBlob() {
+  async function makeBlob(forceJpeg = false) {
     await Promise.all(cfg.texts.map((t) => document.fonts.load(`${t.weight} ${Math.round(t.fontSize)}px ${FONTS[t.font]?.css}`).catch(() => {})));
     const c = document.createElement("canvas");
     c.width = cfg.width;
     c.height = cfg.height;
     render(c.getContext("2d")!, cfg, { frame, photo, values });
-    const type = cfg.format === "jpg" ? "image/jpeg" : "image/png";
+    const type = forceJpeg || cfg.format === "jpg" ? "image/jpeg" : "image/png";
     return new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("export"))), type, 0.93));
   }
   const fileName = () => {
@@ -308,7 +318,20 @@ export function FrameStudio({
     }
     setBusy("Đang xuất ảnh chất lượng cao…");
     try {
-      const blob = await makeBlob();
+      let blob = await makeBlob();
+      if (!preview && IN_APP.test(navigator.userAgent)) {
+        // in-app browser: park the file on the server and download it from a real URL
+        if (blob.size > 3.8 * 1024 * 1024) blob = await makeBlob(true);
+        const name = fileName().replace(/\.png$/, blob.type === "image/jpeg" ? ".jpg" : ".png");
+        const r = await fetch(`/api/dl?campaignId=${encodeURIComponent(campaign.id)}&name=${encodeURIComponent(name)}`, { method: "POST", body: blob, headers: { "Content-Type": blob.type } });
+        const d = (await r.json()) as { url?: string };
+        if (d.url) {
+          setDone({ url: d.url + "?inline=1", blob, server: d.url });
+          track("download", { names: cfg.collectNames ? values : undefined });
+          setTimeout(() => (location.href = d.url!), 150);
+          return;
+        }
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -370,10 +393,14 @@ export function FrameStudio({
               className="group absolute grid place-items-center"
               style={{ left: cfg.photo.x * scale, top: cfg.photo.y * scale, width: cfg.photo.w * scale, height: cfg.photo.h * scale, borderRadius: cfg.photo.shape === "circle" ? "9999px" : 12 }}
             >
-              <span className="absolute inset-[6%] animate-pulse border-2 border-dashed border-white/70" style={{ borderRadius: cfg.photo.shape === "circle" ? "9999px" : 12 }} />
-              <span className="relative flex flex-col items-center gap-1.5 rounded-2xl bg-white/90 px-4 py-3 text-[13px] font-semibold text-stone-900 shadow-lift backdrop-blur transition group-active:scale-95">
-                <ImagePlus className="size-6" style={{ color: accent }} />
-                {campaign.theme.ctaText || "Thêm ảnh của bạn"}
+              <span className="absolute inset-[4%] border-2 border-dashed border-white/80 shadow-[0_0_0_1px_rgba(0,0,0,.15)]" style={{ borderRadius: cfg.photo.shape === "circle" ? "9999px" : 12 }} />
+              <span
+                className="relative grid place-items-center rounded-full bg-white/95 shadow-lift transition group-active:scale-90"
+                style={{ width: Math.max(40, Math.min(60, Math.min(cfg.photo.w, cfg.photo.h) * scale * 0.24)), height: Math.max(40, Math.min(60, Math.min(cfg.photo.w, cfg.photo.h) * scale * 0.24)) }}
+                aria-label="Thêm ảnh"
+              >
+                <ImagePlus className="size-1/2" style={{ color: accent }} />
+                <span className="absolute inset-0 animate-ping rounded-full opacity-30" style={{ background: accent }} />
               </span>
             </button>
           )}
@@ -397,16 +424,19 @@ export function FrameStudio({
                     onChange={(e) => setValues((v) => ({ ...v, [t.id]: e.target.value }))}
                     onBlur={() => setEditing(null)}
                     onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
-                    className="absolute z-20 rounded-lg bg-white/85 px-2 outline-none ring-2 backdrop-blur placeholder:opacity-40"
+                    className="absolute z-20 rounded-xl bg-white px-3 text-stone-900 shadow-2xl outline-none ring-[3px] placeholder:text-stone-400"
                     style={{
-                      ...style,
+                      left: style.left,
+                      width: style.width,
+                      // never smaller than a comfortable touch target, centred on the field
+                      height: Math.max(46, style.height),
+                      top: style.top + style.height / 2 - Math.max(46, style.height) / 2,
                       ["--tw-ring-color" as string]: accent,
                       fontFamily: FONTS[t.font].css,
-                      fontWeight: t.weight,
-                      color: t.color,
+                      fontWeight: Math.min(t.weight, 700),
                       textAlign: t.align,
                       textTransform: t.uppercase ? "uppercase" : undefined,
-                      fontSize: Math.max(16, t.fontSize * scale * 0.82),
+                      fontSize: Math.min(28, Math.max(16, t.fontSize * scale * 0.7)), // ≥16px: no iOS zoom
                     }}
                   />
                 );
@@ -532,12 +562,12 @@ export function FrameStudio({
     <div className="flex gap-2">
       <button
         onClick={download}
-        className={cx("flex h-[52px] flex-1 items-center justify-center gap-2 rounded-[calc(var(--r)*.7)] text-[15px] font-semibold transition active:scale-[.98]", !canExport && "opacity-70")}
-        style={{ background: accent, color: accentInk, boxShadow: `0 12px 28px -12px ${accent}` }}
+        className={cx("flex h-[52px] flex-1 items-center justify-center gap-2 text-[15px] font-semibold transition active:scale-[.98]", chrome.button === "pill" ? "rounded-full" : "rounded-[calc(var(--r)*.7)]", !canExport && "opacity-70")}
+        style={chrome.button === "outline" ? { border: `2px solid ${accent}`, color: accent, background: "transparent" } : { background: accent, color: accentInk, boxShadow: `0 12px 28px -12px ${accent}` }}
       >
         <Download className="size-5" /> {campaign.type === "invitation" ? "Tải thiệp về" : "Tải ảnh về"}
       </button>
-      <button onClick={() => (canExport ? share() : download())} className={cx("grid w-[52px] place-items-center rounded-[calc(var(--r)*.7)] transition active:scale-[.98]", surface)} aria-label="Chia sẻ">
+      <button onClick={() => (canExport ? share() : download())} className={cx("grid w-[52px] place-items-center transition active:scale-[.98]", chrome.button === "pill" ? "rounded-full" : "rounded-[calc(var(--r)*.7)]", surface)} aria-label="Chia sẻ">
         <Share2 className="size-5" />
       </button>
     </div>
@@ -585,6 +615,7 @@ export function FrameStudio({
       {/* desktop column */}
       <aside className="relative z-10 hidden min-h-0 w-[400px] shrink-0 flex-col gap-5 overflow-y-auto px-8 py-8 scrollbar-none lg:flex xl:w-[440px]">
         {!embed && chrome.info}
+        {chrome.tabs}
         {desktopTools}
         {actions}
         {!embed && <div className="mt-auto">{chrome.footer}</div>}
@@ -598,10 +629,13 @@ export function FrameStudio({
             <button onClick={() => setSheet(true)} className={cx("grid size-9 shrink-0 place-items-center rounded-full", surface)} aria-label="Thông tin"><Info className="size-[18px]" /></button>
           </div>
         )}
+        {!embed && chrome.mobileInfo && <div className="px-4 lg:hidden">{chrome.mobileInfo}</div>}
+        {chrome.tabs && <div className="px-4 pt-2 lg:hidden">{chrome.tabs}</div>}
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3 lg:px-10 lg:py-8">{canvasBox}</div>
-        <div className="space-y-2 pb-[max(env(safe-area-inset-bottom),12px)] lg:hidden">
+        <div className="space-y-2 pb-[max(env(safe-area-inset-bottom),10px)] lg:hidden">
           {strip}
           <div className="px-3">{actions}</div>
+          {!embed && chrome.mobileFooter && <div className="px-4">{chrome.mobileFooter}</div>}
         </div>
       </section>
 
@@ -614,7 +648,7 @@ export function FrameStudio({
         </div>
       )}
 
-      {done && <DoneSheet campaign={campaign} done={done} allowCaption={allowed.caption} name={Object.values(values).find(Boolean)} accent={accent} onClose={() => setDone(null)} onShare={() => share(done.blob)} track={track} preview={preview} />}
+      {done && <DoneSheet campaign={campaign} done={done} server={done.server} allowCaption={allowed.caption} name={Object.values(values).find(Boolean)} accent={accent} onClose={() => setDone(null)} onShare={() => share(done.blob)} track={track} preview={preview} />}
     </div>
   );
 }
@@ -632,9 +666,10 @@ function FilterThumb({ src, css }: { src: HTMLCanvasElement | null; css: string 
   return <canvas ref={ref} width={96} height={96} className="size-full bg-stone-300" />;
 }
 
-function DoneSheet({ campaign, done, allowCaption, name, accent, onClose, onShare, track, preview }: {
+function DoneSheet({ campaign, done, server, allowCaption, name, accent, onClose, onShare, track, preview }: {
   campaign: { id: string; title: string; theme: Theme };
   done: { url: string };
+  server?: string;
   allowCaption: boolean;
   name?: string;
   accent: string;
@@ -674,12 +709,22 @@ function DoneSheet({ campaign, done, allowCaption, name, accent, onClose, onShar
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 text-lg font-bold"><span className="grid size-7 place-items-center rounded-full text-white" style={{ background: accent }}><Check className="size-4" /></span>Đã lưu ảnh!</div>
-            <p className="mt-1 text-sm text-stone-500">Không thấy file? Nhấn giữ ảnh bên dưới để lưu vào máy.</p>
+            <p className="mt-1 text-sm text-stone-500">{server ? "Nếu chưa thấy ảnh trong máy: nhấn giữ ảnh bên dưới → Lưu ảnh." : "Không thấy file? Nhấn giữ ảnh bên dưới để lưu vào máy."}</p>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-black/5"><X className="size-5" /></button>
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={done.url} alt="Ảnh của bạn" className="mx-auto mt-4 max-h-[34dvh] rounded-2xl shadow-lg" />
+        {server && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <a href={server} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-stone-100 text-sm font-semibold"><Download className="size-4" /> Tải lại</a>
+            {/Android/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "") ? (
+              <a href={`intent://${location.host}${location.pathname}${location.search}#Intent;scheme=https;package=com.android.chrome;end`} className="flex h-11 items-center justify-center rounded-xl bg-stone-100 text-sm font-semibold">Mở bằng Chrome</a>
+            ) : (
+              <span className="flex items-center justify-center rounded-xl bg-stone-100 px-2 text-center text-[11px] leading-tight text-stone-600">Bấm ••• góc trên → Mở bằng trình duyệt</span>
+            )}
+          </div>
+        )}
         <button onClick={onShare} className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white" style={{ background: accent }}>
           <Share2 className="size-5" /> Chia sẻ lên mạng xã hội
         </button>

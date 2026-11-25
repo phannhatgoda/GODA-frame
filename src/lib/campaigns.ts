@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { all, one } from "./db";
-import { defaultConfig, defaultTheme, parseJson, type CampaignPublic, type FrameConfig, type Theme } from "./types";
+import { DEFAULT_DESIGN, defaultConfig, defaultTheme, parseJson, type CampaignPublic, type FrameConfig, type Theme } from "./types";
 
 export interface CampaignRow {
   id: string;
@@ -18,6 +18,8 @@ export interface CampaignRow {
 
 export function hydrate(row: CampaignRow): CampaignPublic & { owner_id: string; created_at: number; updated_at: number } {
   const theme = parseJson<Theme>(row.theme, defaultTheme(row.type, row.title));
+  theme.design = { ...DEFAULT_DESIGN, ...theme.design };
+  theme.companions = Array.isArray(theme.companions) ? theme.companions : [];
   const base = defaultConfig(row.type);
   const cfg = parseJson<FrameConfig>(row.config, base);
   cfg.photo = { ...base.photo, ...cfg.photo };
@@ -61,7 +63,7 @@ const url = z
 const font = z.enum(["be-vietnam", "inter", "montserrat", "playfair", "lora", "dancing"]);
 
 export const themeSchema = z.object({
-  template: z.enum(["aura", "bold", "glass", "festive", "mono", "studio", "paper", "neon"]),
+  template: z.enum(["aura", "bold", "glass", "festive", "mono", "studio", "paper", "neon", "custom"]),
   primary: color,
   secondary: color.default("#FFD6E7"),
   background: color,
@@ -79,7 +81,33 @@ export const themeSchema = z.object({
   hashtag: z.string().max(120),
   caption: z.string().max(600),
   showPoweredBy: z.boolean(),
+  design: z
+    .object({
+      surface: z.enum(["auto", "glass", "solid", "outline", "none"]),
+      button: z.enum(["auto", "solid", "outline", "pill"]),
+      align: z.enum(["auto", "left", "center"]),
+      headlineScale: z.number().min(0.7).max(1.6),
+      headlineWeight: z.number().min(0).max(900),
+      overlay: z.number().min(0).max(90),
+      showLogo: z.boolean(), showSub: z.boolean(), showHashtag: z.boolean(), showLinks: z.boolean(), showFooter: z.boolean(),
+      customCss: z.string().max(6000).transform(sanitizeCss),
+    })
+    .default(DEFAULT_DESIGN),
+  tabLabel: z.string().max(30).default(""),
+  companions: z.array(z.object({ campaignId: z.string().max(40), label: z.string().max(30) })).max(4).default([]),
 });
+
+/** User CSS lives inside a <style> tag: make it impossible to break out or load remote code. */
+export function sanitizeCss(css: string) {
+  return css
+    .replace(/<\/?\s*style/gi, "")
+    .replace(/</g, "")
+    .replace(/@import[^;]*;?/gi, "")
+    .replace(/expression\s*\(/gi, "")
+    .replace(/(javascript|vbscript|data)\s*:/gi, "")
+    .replace(/url\(\s*(['"]?)(?!https:\/\/|\/)[^)]*\)/gi, "none")
+    .slice(0, 6000);
+}
 
 const num = z.number().finite();
 export const configSchema = z.object({

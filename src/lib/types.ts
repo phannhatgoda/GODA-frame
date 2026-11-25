@@ -1,4 +1,4 @@
-export type TemplateId = "aura" | "bold" | "glass" | "festive" | "mono" | "studio" | "paper" | "neon";
+export type TemplateId = "aura" | "bold" | "glass" | "festive" | "mono" | "studio" | "paper" | "neon" | "custom";
 export type BgStyle = "solid" | "gradient" | "mesh" | "image";
 export type FontId = "be-vietnam" | "inter" | "montserrat" | "playfair" | "lora" | "dancing";
 
@@ -20,6 +20,7 @@ export const TEMPLATES: Record<TemplateId, { name: string; desc: string; premium
   studio: { name: "Studio", desc: "Nền tối sang trọng", premium: true },
   paper: { name: "Paper", desc: "Thanh lịch kiểu thiệp, chữ serif", premium: true },
   neon: { name: "Neon", desc: "Đêm nhạc, phát sáng", premium: true },
+  custom: { name: "Tự thiết kế", desc: "Trang trắng — bạn tự quyết mọi chi tiết", premium: false },
 };
 
 /** Recommended starting colours per template — applied when the organizer picks a template. */
@@ -32,7 +33,32 @@ export const TEMPLATE_PRESETS: Record<TemplateId, Pick<Theme, "primary" | "secon
   studio: { primary: "#FF5A1F", secondary: "#7C3AED", background: "#0F0F12", text: "#F5F5F4", font: "be-vietnam", bgStyle: "mesh", radius: 20 },
   paper: { primary: "#B4532A", secondary: "#E9D8BF", background: "#FBF7F0", text: "#2A1A10", font: "playfair", bgStyle: "solid", radius: 10 },
   neon: { primary: "#22D3EE", secondary: "#F0ABFC", background: "#05010D", text: "#F5F3FF", font: "montserrat", bgStyle: "mesh", radius: 18 },
+  custom: { primary: "#111827", secondary: "#E5E7EB", background: "#F8FAFC", text: "#0F172A", font: "be-vietnam", bgStyle: "solid", radius: 16 },
 };
+
+/** Fine-grained look & feel — applies on top of any template ("Tự thiết kế"). */
+export interface Design {
+  surface: "auto" | "glass" | "solid" | "outline" | "none";
+  button: "auto" | "solid" | "outline" | "pill";
+  align: "auto" | "left" | "center";
+  headlineScale: number; // 0.7 – 1.6
+  headlineWeight: number; // 400 – 900
+  overlay: number; // 0 – 90 (% darkening of background image)
+  showLogo: boolean;
+  showSub: boolean;
+  showHashtag: boolean;
+  showLinks: boolean;
+  showFooter: boolean;
+  customCss: string;
+}
+
+export const DEFAULT_DESIGN: Design = {
+  surface: "auto", button: "auto", align: "auto", headlineScale: 1, headlineWeight: 0, overlay: 45,
+  showLogo: true, showSub: true, showHashtag: true, showLinks: true, showFooter: true, customCss: "",
+};
+
+/** Another campaign shown as a tab on the same page (e.g. invitation + avatar frame). */
+export interface Companion { campaignId: string; label: string }
 
 export interface ThemeLink { label: string; url: string }
 
@@ -55,6 +81,9 @@ export interface Theme {
   hashtag: string;
   caption: string;
   showPoweredBy: boolean;
+  design: Design;
+  tabLabel: string;
+  companions: Companion[];
 }
 
 export interface TextField {
@@ -96,6 +125,16 @@ export interface FrameConfig {
   format: "png" | "jpg";
 }
 
+export interface Variant {
+  id: string;
+  slug: string;
+  title: string;
+  type: "avatar" | "invitation";
+  label: string;
+  config: FrameConfig;
+  allowed: { face: boolean; background: boolean; filters: boolean; caption: boolean };
+}
+
 export interface CampaignPublic {
   id: string;
   slug: string;
@@ -124,6 +163,9 @@ export function defaultTheme(type: "avatar" | "invitation", title: string): Them
     hashtag: "",
     caption: "",
     showPoweredBy: true,
+    design: { ...DEFAULT_DESIGN },
+    tabLabel: "",
+    companions: [],
   };
 }
 

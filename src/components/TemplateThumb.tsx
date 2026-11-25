@@ -20,6 +20,15 @@ export function TemplateThumb({ id }: { id: TemplateId }) {
         <div className="mx-auto mt-2 h-4 w-[55%] rounded-md bg-stone-900" />
       </div>
     );
+  if (id === "custom")
+    return (
+      <div className="relative grid aspect-[3/4] place-items-center overflow-hidden rounded-xl border-2 border-dashed border-stone-300 bg-white">
+        <div className="text-center text-stone-400">
+          <div className="text-2xl">✎</div>
+          <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider">Của bạn</div>
+        </div>
+      </div>
+    );
   if (id === "glass")
     return (
       <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-gradient-to-br from-blue-500 via-violet-600 to-pink-500 p-2">

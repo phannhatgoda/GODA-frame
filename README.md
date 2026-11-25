@@ -32,6 +32,13 @@ Người tổ chức đăng ký tài khoản → tải frame/thiệp lên → tu
   ```
 - **REST API v1** (Bearer `gf_live_…`, key lưu dạng SHA-256): `GET /api/v1/campaigns`, `GET /api/v1/campaigns/:id|slug?days=30`, `GET /api/v1/campaigns/:id/events?since=&type=&limit=`.
 
+## Cập nhật v3
+
+- Trang khách: bỏ ô "Tạo thiệp của tôi" (chỉ còn nút + trên vùng ảnh), ô nhập chữ nền trắng chữ đen dễ đọc, mô tả + liên kết + footer hiển thị sẵn trên mobile.
+- Trình duyệt trong Zalo/Facebook/Instagram/TikTok: ảnh được lưu tạm 15 phút trên máy chủ (`/api/dl`) và tải về qua URL thường; kèm nút "Tải lại" và "Mở bằng Chrome".
+- Gộp nhiều trải nghiệm trên một link (thiệp mời + frame avatar…) dạng tab — cấu hình trong tab Giao diện → "Gộp nhiều trải nghiệm".
+- "Tự thiết kế": mẫu trang trắng + tuỳ chỉnh kiểu khối, kiểu nút, căn lề, cỡ/độ đậm tiêu đề, độ phủ ảnh nền, ẩn/hiện từng thành phần, CSS tuỳ chỉnh (gói cao cấp, đã lọc @import/script/url ngoài).
+
 ## Kiến trúc
 
 - **Next.js 15** (App Router, React 19) + Tailwind CSS 4 — một codebase cho UI và API.

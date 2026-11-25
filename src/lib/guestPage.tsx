@@ -5,6 +5,8 @@ import { one } from "./db";
 import { featuresFor } from "./plans";
 import { getUser, isAdmin } from "./auth";
 import { GuestView } from "@/components/guest/GuestView";
+import type { Features } from "./features";
+import type { Variant } from "./types";
 
 type Campaign = NonNullable<Awaited<ReturnType<typeof getCampaignBySlug>>>;
 
@@ -23,6 +25,26 @@ export function campaignMetadata(c: Campaign | undefined): Metadata {
     description: c.theme.subheadline,
     openGraph: { title: c.theme.headline || c.title, description: c.theme.subheadline, images: c.theme.coverUrl ? [c.theme.coverUrl] : c.config.frameUrl.startsWith("/api/") ? [c.config.frameUrl] : [] },
   };
+}
+
+const defaultLabel = (type: string) => (type === "invitation" ? "Thiệp mời" : "Frame avatar");
+
+function allowedFor(perms: Features, ai: { face: boolean; background: boolean; filters: boolean; caption: boolean }) {
+  return { face: perms.aiFace && ai.face, background: perms.aiBackground && ai.background, filters: ai.filters, caption: perms.aiCaption && ai.caption };
+}
+
+/** The campaign itself + its companion campaigns (same owner), each shown as a tab. */
+export async function buildVariants(c: Campaign, perms: Features, includeDrafts: boolean): Promise<Variant[]> {
+  const list: Variant[] = [
+    { id: c.id, slug: c.slug, title: c.title, type: c.type, label: c.theme.tabLabel || defaultLabel(c.type), config: c.config, allowed: allowedFor(perms, c.config.ai) },
+  ];
+  for (const comp of c.theme.companions || []) {
+    if (comp.campaignId === c.id || list.some((v) => v.id === comp.campaignId)) continue;
+    const o = await getCampaignById(comp.campaignId);
+    if (!o || o.owner_id !== c.owner_id || (!includeDrafts && o.status !== "published")) continue;
+    list.push({ id: o.id, slug: o.slug, title: o.title, type: o.type, label: comp.label || o.theme.tabLabel || defaultLabel(o.type), config: o.config, allowed: allowedFor(perms, o.config.ai) });
+  }
+  return list;
 }
 
 function Closed({ title = "Trang chưa mở hoặc đã kết thúc", text = "Vui lòng liên hệ ban tổ chức để nhận đường link mới." }) {
@@ -46,12 +68,7 @@ export async function renderCampaign(d: Awaited<ReturnType<typeof loadCampaign>>
   const live = c.status === "published" && owner.status === "active";
   if (!live && !canPreview) return <Closed />;
 
-  const allowed = {
-    face: perms.aiFace && c.config.ai.face,
-    background: perms.aiBackground && c.config.ai.background,
-    filters: c.config.ai.filters,
-    caption: perms.aiCaption && c.config.ai.caption,
-  };
+  const variants = await buildVariants(c, perms, !live);
   const { owner_id: _o, created_at: _c, updated_at: _u, ...pub } = c;
   return (
     <>
@@ -60,7 +77,7 @@ export async function renderCampaign(d: Awaited<ReturnType<typeof loadCampaign>>
           Bản xem trước — chưa xuất bản
         </div>
       )}
-      <GuestView campaign={pub} allowed={allowed} poweredBy={c.theme.showPoweredBy || !perms.removeBranding} preview={!live} embed={opts.embed} />
+      <GuestView campaign={pub} variants={variants} poweredBy={c.theme.showPoweredBy || !perms.removeBranding} preview={!live} embed={opts.embed} canCustomCss={perms.premiumTemplates} />
     </>
   );
 }

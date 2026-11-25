@@ -10,7 +10,7 @@ import { api, Badge, Button, cx, Field, Input, Segmented, Select, Switch, Textar
 import { FramePlacer } from "./FramePlacer";
 import { TemplateThumb } from "../TemplateThumb";
 import { detectTransparentSlot, loadImage } from "@/lib/client/render";
-import { FONTS, TEMPLATE_PRESETS, TEMPLATES, type BgStyle, type CampaignPublic, type FontId, type FrameConfig, type TemplateId, type TextField, type Theme } from "@/lib/types";
+import { DEFAULT_DESIGN, FONTS, TEMPLATE_PRESETS, TEMPLATES, type BgStyle, type CampaignPublic, type Design, type FontId, type FrameConfig, type TemplateId, type TextField, type Theme } from "@/lib/types";
 import type { Features } from "@/lib/features";
 
 const SAMPLES = [
@@ -67,7 +67,9 @@ async function uploadFile(file: File) {
   return api<{ url: string }>("/api/upload", { method: "POST", body: fd });
 }
 
-export function CampaignEditor({ initial, perms, appUrl }: { initial: CampaignPublic; perms: Features; appUrl: string }) {
+export type OtherCampaign = { id: string; title: string; type: string; status: string };
+
+export function CampaignEditor({ initial, perms, appUrl, others = [] }: { initial: CampaignPublic; perms: Features; appUrl: string; others?: OtherCampaign[] }) {
   const router = useRouter();
   const toast = useToast();
   const [c, setC] = useState(initial);
@@ -79,6 +81,15 @@ export function CampaignEditor({ initial, perms, appUrl }: { initial: CampaignPu
   const iframe = useRef<HTMLIFrameElement>(null);
 
   // push live state to preview iframe
+  // companion campaigns are loaded server-side by the preview page → reload it after they change & are saved
+  const compKey = c.theme.companions.map((x) => x.campaignId).join(",");
+  const [frameKey, setFrameKey] = useState(compKey);
+  useEffect(() => {
+    if (compKey === frameKey) return;
+    const t = setTimeout(() => setFrameKey(compKey), 1600);
+    return () => clearTimeout(t);
+  }, [compKey, frameKey]);
+
   const pushPreview = useCallback(() => {
     iframe.current?.contentWindow?.postMessage({ type: "goda:preview", campaign: { theme: c.theme, config: c.config, title: c.title, type: c.type } }, location.origin);
   }, [c]);
@@ -152,7 +163,7 @@ export function CampaignEditor({ initial, perms, appUrl }: { initial: CampaignPu
         <div className="min-w-0">
           <Segmented<Tab> value={tab} onChange={setTab} className="mb-5 w-full sm:w-auto" options={[{ value: "frame", label: "① Frame & bố cục" }, { value: "theme", label: "② Giao diện trang" }, { value: "share", label: "③ Chia sẻ" }]} />
           {tab === "frame" && <FrameTab c={c} setConfig={setConfig} perms={perms} selected={selected} setSelected={setSelected} />}
-          {tab === "theme" && <ThemeTab theme={c.theme} setTheme={setTheme} perms={perms} />}
+          {tab === "theme" && <ThemeTab theme={c.theme} setTheme={setTheme} perms={perms} others={others} type={c.type} />}
           {tab === "share" && <ShareTab c={c} setC={setC} publicUrl={publicUrl} setStatus={setStatus} />}
         </div>
 
@@ -164,14 +175,14 @@ export function CampaignEditor({ initial, perms, appUrl }: { initial: CampaignPu
               <a href={`/f/${c.slug}`} target="_blank" className="rounded-lg p-2 text-ink-3 hover:bg-black/5" title="Mở tab mới"><Link2 className="size-4" /></a>
             </div>
           </div>
-          <PreviewFrame id={c.id} device={device} iframeRef={iframe} />
+          <PreviewFrame id={c.id} device={device} iframeRef={iframe} reloadKey={frameKey} />
         </div>
       </div>
     </div>
   );
 }
 
-function PreviewFrame({ id, device, iframeRef }: { id: string; device: "mobile" | "desktop"; iframeRef: React.RefObject<HTMLIFrameElement | null> }) {
+function PreviewFrame({ id, device, iframeRef, reloadKey }: { id: string; device: "mobile" | "desktop"; iframeRef: React.RefObject<HTMLIFrameElement | null>; reloadKey?: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(400);
   useEffect(() => {
@@ -187,7 +198,7 @@ function PreviewFrame({ id, device, iframeRef }: { id: string; device: "mobile" 
       <div className="mx-auto overflow-hidden" style={{ width: (vw + (device === "mobile" ? 24 : 0)) * scale, height: (vh + (device === "mobile" ? 24 : 0)) * scale }}>
         <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: vw + (device === "mobile" ? 24 : 0) }}>
           <div className={cx("bg-ink shadow-lift", device === "mobile" ? "rounded-[44px] p-3" : "rounded-xl p-0")}>
-            <iframe ref={iframeRef} src={`/preview/${id}`} title="Xem trước" className={cx("block bg-white", device === "mobile" ? "rounded-[34px]" : "rounded-xl")} style={{ width: vw, height: vh }} />
+            <iframe key={reloadKey} ref={iframeRef} src={`/preview/${id}`} title="Xem trước" className={cx("block bg-white", device === "mobile" ? "rounded-[34px]" : "rounded-xl")} style={{ width: vw, height: vh }} />
           </div>
         </div>
       </div>
@@ -414,7 +425,9 @@ function ImagePick({ label, value, onChange, hint }: { label: string; value: str
   );
 }
 
-function ThemeTab({ theme, setTheme, perms }: { theme: Theme; setTheme: (p: Partial<Theme>) => void; perms: Features }) {
+function ThemeTab({ theme, setTheme, perms, others, type }: { theme: Theme; setTheme: (p: Partial<Theme>) => void; perms: Features; others: OtherCampaign[]; type: string }) {
+  const ds = { ...DEFAULT_DESIGN, ...theme.design };
+  const setDesign = (p: Partial<Design>) => setTheme({ design: { ...ds, ...p } });
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
@@ -494,6 +507,80 @@ function ThemeTab({ theme, setTheme, perms }: { theme: Theme; setTheme: (p: Part
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="space-y-5 rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <div>
+          <h3 className="font-semibold">Tự thiết kế</h3>
+          <p className="text-sm text-ink-3">Tinh chỉnh chi tiết — áp dụng lên bất kỳ mẫu nào. Chọn mẫu “Tự thiết kế” để bắt đầu từ trang trắng.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Kiểu khối (thanh công cụ, liên kết)">
+            <Segmented className="w-full" value={ds.surface} onChange={(v) => setDesign({ surface: v })} options={[{ value: "auto", label: "Theo mẫu" }, { value: "glass", label: "Kính" }, { value: "solid", label: "Đặc" }, { value: "outline", label: "Viền" }, { value: "none", label: "Không" }]} />
+          </Field>
+          <Field label="Kiểu nút Tải về">
+            <Segmented className="w-full" value={ds.button} onChange={(v) => setDesign({ button: v })} options={[{ value: "auto", label: "Theo mẫu" }, { value: "solid", label: "Đặc" }, { value: "pill", label: "Bo tròn" }, { value: "outline", label: "Viền" }]} />
+          </Field>
+          <Field label="Căn lề nội dung">
+            <Segmented className="w-full" value={ds.align} onChange={(v) => setDesign({ align: v })} options={[{ value: "auto", label: "Trái" }, { value: "center", label: "Giữa" }]} />
+          </Field>
+          <Field label={`Cỡ tiêu đề: ${Math.round(ds.headlineScale * 100)}%`}>
+            <input type="range" min={0.7} max={1.6} step={0.05} value={ds.headlineScale} onChange={(e) => setDesign({ headlineScale: +e.target.value })} className="mt-3 w-full" />
+          </Field>
+          <Field label="Độ đậm tiêu đề">
+            <Segmented className="w-full" value={String(ds.headlineWeight)} onChange={(v) => setDesign({ headlineWeight: +v })} options={[{ value: "0", label: "Theo mẫu" }, { value: "400", label: "Thường" }, { value: "600", label: "Vừa" }, { value: "800", label: "Đậm" }, { value: "900", label: "Đen" }]} />
+          </Field>
+          {theme.bgStyle === "image" && (
+            <Field label={`Độ phủ màu lên ảnh nền: ${ds.overlay}%`}>
+              <input type="range" min={0} max={90} value={ds.overlay} onChange={(e) => setDesign({ overlay: +e.target.value })} className="mt-3 w-full" />
+            </Field>
+          )}
+        </div>
+        <div>
+          <div className="mb-2 text-[13px] font-medium text-ink-2">Hiển thị trên trang</div>
+          <div className="flex flex-wrap gap-2">
+            {([["showLogo", "Logo"], ["showSub", "Mô tả"], ["showHashtag", "Hashtag"], ["showLinks", "Liên kết"], ["showFooter", "Footer"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setDesign({ [k]: !ds[k] })} className={cx("flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition", ds[k] ? "border-brand/40 bg-brand-50 text-ink" : "border-line text-ink-3")}>
+                <span className={cx("grid size-4 place-items-center rounded-full text-[10px] text-white", ds[k] ? "bg-brand" : "bg-stone-300")}>{ds[k] ? "✓" : ""}</span>{l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Field label="CSS tuỳ chỉnh (nâng cao)" hint={perms.premiumTemplates ? <>Dùng lớp <code>.goda-page</code>, <code>.tpl-{theme.template}</code>. Không hỗ trợ @import, script, url ngoài https.</> : "Cần gói có Giao diện cao cấp"}>
+          <Textarea rows={4} disabled={!perms.premiumTemplates} value={ds.customCss} onChange={(e) => setDesign({ customCss: e.target.value })} placeholder={".goda-page h1 { letter-spacing: -0.03em; }\n.goda-page { background-attachment: fixed; }"} className="font-mono text-xs" />
+        </Field>
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <div>
+          <h3 className="font-semibold">Gộp nhiều trải nghiệm trên một trang</h3>
+          <p className="text-sm text-ink-3">Hiển thị cả thiệp mời và frame avatar (hoặc nhiều frame) trên cùng một link — khách chuyển qua lại bằng tab.</p>
+        </div>
+        <Field label="Tên tab của chiến dịch này">
+          <Input value={theme.tabLabel} onChange={(e) => setTheme({ tabLabel: e.target.value })} placeholder={type === "invitation" ? "Thiệp mời" : "Frame avatar"} maxLength={30} />
+        </Field>
+        {others.length === 0 ? (
+          <p className="rounded-xl bg-stone-50 p-3 text-sm text-ink-3">Tạo thêm một chiến dịch khác (VD: frame avatar cho cùng sự kiện) để gộp vào đây.</p>
+        ) : (
+          <div className="divide-y divide-line rounded-xl border border-line">
+            {others.map((o) => {
+              const comp = theme.companions.find((x) => x.campaignId === o.id);
+              return (
+                <div key={o.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                  <Switch checked={!!comp} disabled={!comp && theme.companions.length >= 4} onChange={(v) => setTheme({ companions: v ? [...theme.companions, { campaignId: o.id, label: o.type === "invitation" ? "Thiệp mời" : "Frame avatar" }] : theme.companions.filter((x) => x.campaignId !== o.id) })} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{o.title}</div>
+                    <div className="text-xs text-ink-3">{o.type === "invitation" ? "Thiệp mời" : "Frame avatar"}{o.status !== "published" && " · chưa xuất bản (khách chưa thấy tab này)"}</div>
+                  </div>
+                  {comp && (
+                    <Input className="h-9 w-40 text-sm" value={comp.label} maxLength={30} onChange={(e) => setTheme({ companions: theme.companions.map((x) => (x.campaignId === o.id ? { ...x, label: e.target.value } : x)) })} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-xs text-ink-3">Giao diện (màu, logo, nội dung) dùng theo chiến dịch này; frame & ô nhập theo từng chiến dịch được gộp. Thống kê vẫn tính riêng từng chiến dịch.</p>
       </section>
 
       <section className="flex items-center justify-between rounded-2xl border border-line bg-white p-5 shadow-soft">
