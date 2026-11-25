@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api, Button, Field, Input } from "./ui";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, signupOpen = true }: { mode: "login" | "register"; signupOpen?: boolean }) {
   const router = useRouter();
   const next = useSearchParams().get("next");
   const [err, setErr] = useState("");
@@ -49,7 +49,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       </Button>
       <p className="text-center text-sm text-ink-3">
         {mode === "login" ? (
-          <>Chưa có tài khoản? <Link href="/register" className="font-medium text-brand hover:underline">Đăng ký</Link></>
+          signupOpen ? <>Chưa có tài khoản? <Link href="/register" className="font-medium text-brand hover:underline">Đăng ký</Link></> : <>Cần tài khoản? Liên hệ quản trị viên.</>
         ) : (
           <>Đã có tài khoản? <Link href="/login" className="font-medium text-brand hover:underline">Đăng nhập</Link></>
         )}

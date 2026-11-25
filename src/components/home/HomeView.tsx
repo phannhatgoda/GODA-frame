@@ -29,7 +29,7 @@ function Highlight({ text, word }: { text: string; word: string }) {
  */
 export type PortalCampaign = { slug: string; title: string; type: string; href: string; image: string };
 
-export function HomeView({ site, loggedIn, editable, selected, scope = "platform", campaigns = [] }: { site: SiteSettings; loggedIn: boolean; editable?: boolean; selected?: string | null; scope?: "platform" | "portal"; campaigns?: PortalCampaign[] }) {
+export function HomeView({ site, loggedIn, editable, selected, scope = "platform", campaigns = [], signupOpen = true }: { site: SiteSettings; loggedIn: boolean; editable?: boolean; selected?: string | null; scope?: "platform" | "portal"; campaigns?: PortalCampaign[]; signupOpen?: boolean }) {
   const portal = scope === "portal";
   const brand = { name: site.brand.name, logoUrl: site.brand.logoUrl };
   const pick = (id: string) => (e: React.MouseEvent) => {
@@ -49,7 +49,7 @@ export function HomeView({ site, loggedIn, editable, selected, scope = "platform
       {children}
     </section>
   );
-  const href = (primary: boolean) => (portal ? "#campaigns" : primary ? (loggedIn ? "/dashboard/new" : "/register") : "#how");
+  const href = (primary: boolean) => (portal ? "#campaigns" : primary ? (loggedIn ? "/dashboard/new" : signupOpen ? "/register" : "/login") : "#how");
 
   return (
     <div className="min-h-dvh overflow-x-hidden">
@@ -68,7 +68,7 @@ export function HomeView({ site, loggedIn, editable, selected, scope = "platform
             ) : (
               <>
                 <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-medium text-ink-2 hover:bg-black/5">Đăng nhập</Link>
-                <Link href="/register" className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white">Dùng miễn phí</Link>
+                {signupOpen && <Link href="/register" className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white">Dùng miễn phí</Link>}
               </>
             )}
           </nav>

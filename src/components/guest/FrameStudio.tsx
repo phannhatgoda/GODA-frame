@@ -52,6 +52,18 @@ function useKeyboardOffset(active: boolean) {
   return o;
 }
 
+function useIsDesktop() {
+  const [d, setD] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const f = () => setD(mq.matches);
+    f();
+    mq.addEventListener("change", f);
+    return () => mq.removeEventListener("change", f);
+  }, []);
+  return d;
+}
+
 /** Largest W:H box that fits inside the element. */
 function useFit(ar: number) {
   const ref = useRef<HTMLDivElement>(null);
@@ -149,7 +161,9 @@ export function FrameStudio({
   const [sheet, setSheet] = useState(false);
   const [filterId, setFilterId] = useState("none");
   const fontsReady = useFonts(cfg);
-  const kb = useKeyboardOffset(!!editing);
+  const isDesktop = useIsDesktop();
+  const kb = useKeyboardOffset(!!editing && !isDesktop);
+  const [hl, setHl] = useState<string | null>(null); // field focused in the desktop side panel
   const { ref: fitRef, size } = useFit(cfg.width / cfg.height);
   const scale = size.w / cfg.width; // css px per frame px
 
@@ -232,7 +246,16 @@ export function FrameStudio({
     if (!file.type.startsWith("image/")) return flash("Vui lòng chọn file ảnh");
     setBusy("Đang xử lý ảnh…");
     try {
-      const c = await fileToCanvas(file);
+      await applyPhoto(await fileToCanvas(file));
+    } catch (e) {
+      setBusy("");
+      flash((e as Error).message);
+    }
+  }
+
+  async function applyPhoto(c: HTMLCanvasElement) {
+    setBusy("Đang xử lý ảnh…");
+    try {
       original.current = c;
       cutout.current = null;
       setFilterId("none");
@@ -245,6 +268,13 @@ export function FrameStudio({
       setBusy("");
       flash((e as Error).message);
     }
+  }
+
+  const [camera, setCamera] = useState(false);
+  function openCamera() {
+    // live in-page camera where supported; native camera picker as fallback (older / in-app browsers)
+    if (typeof navigator.mediaDevices?.getUserMedia === "function" && window.isSecureContext) setCamera(true);
+    else camRef.current?.click();
   }
 
   useEffect(() => {
@@ -426,7 +456,33 @@ export function FrameStudio({
             cfg.texts.map((t) => {
               const b = textBox(t);
               const val = values[t.id] || "";
-              const isEditing = editing === t.id;
+              const isEditing = editing === t.id || hl === t.id;
+              if (isDesktop && editing === t.id) {
+                const idx = cfg.texts.findIndex((x) => x.id === t.id);
+                const next = cfg.texts[idx + 1];
+                const h = Math.max(44, Math.min(64, b.h * scale));
+                return (
+                  <input
+                    key={t.id}
+                    autoFocus
+                    value={val}
+                    maxLength={60}
+                    placeholder={t.placeholder}
+                    onChange={(e) => setValues((v) => ({ ...v, [t.id]: e.target.value }))}
+                    onBlur={() => setEditing((cur) => (cur === t.id ? null : cur))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setEditing(null);
+                      if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey && next)) { e.preventDefault(); setEditing(next && e.key === "Tab" ? next.id : e.key === "Enter" && next ? next.id : null); }
+                    }}
+                    className="absolute z-20 rounded-xl border-2 bg-white px-3 font-semibold text-stone-900 shadow-2xl outline-none placeholder:font-normal placeholder:text-stone-400"
+                    style={{
+                      left: b.x * scale - 4, width: b.w * scale + 8, top: (b.y + b.h / 2) * scale - h / 2, height: h,
+                      borderColor: accent, textAlign: t.align, fontSize: Math.max(15, Math.min(22, h * 0.42)),
+                      fontFamily: FONTS[t.font].css,
+                    }}
+                  />
+                );
+              }
               const style = { left: b.x * scale, top: b.y * scale, width: b.w * scale, height: b.h * scale };
               return (
                 <button
@@ -505,7 +561,7 @@ export function FrameStudio({
 
   const chips: { id: string; label: string; icon: typeof ImagePlus; on: boolean; act: () => void }[] = [
     { id: "change", label: "Đổi ảnh", icon: ImagePlus, on: cfg.photo.enabled, act: () => fileRef.current?.click() },
-    { id: "selfie", label: "Selfie", icon: Camera, on: cfg.photo.enabled, act: () => camRef.current?.click() },
+    { id: "selfie", label: "Selfie", icon: Camera, on: cfg.photo.enabled, act: () => openCamera() },
     { id: "face", label: "Căn mặt AI", icon: ScanFace, on: hasPhoto && allowed.face, act: () => original.current && autoFace(original.current) },
     { id: "bg", label: "Nền AI", icon: Wand2, on: hasPhoto && allowed.background, act: () => setTool("bg") },
     { id: "filter", label: "Bộ lọc", icon: Palette, on: hasPhoto && allowed.filters, act: () => setTool("filter") },
@@ -567,17 +623,25 @@ export function FrameStudio({
       {cfg.texts.length > 0 && (
         <div className="space-y-2">
           {cfg.texts.map((t) => (
-            <button key={t.id} onClick={() => setEditing(t.id)} className="flex w-full items-center justify-between gap-3 rounded-xl bg-black/5 px-3 py-2.5 text-left text-sm transition hover:bg-black/10">
-              <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-wide opacity-60">{t.label}{t.required && " *"}</span><span className="block truncate font-medium">{values[t.id] || <span className="opacity-50">{t.placeholder}</span>}</span></span>
-              <Pencil className="size-4 shrink-0 opacity-60" />
-            </button>
+            <label key={t.id} className="block rounded-xl bg-black/5 px-3 pb-2 pt-2 transition focus-within:bg-white focus-within:ring-2" style={{ ["--tw-ring-color" as string]: accent }}>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide opacity-60">{t.label}{t.required && " *"}</span>
+              <input
+                value={values[t.id] || ""}
+                maxLength={60}
+                placeholder={t.placeholder}
+                onFocus={() => setHl(t.id)}
+                onBlur={() => setHl((h) => (h === t.id ? null : h))}
+                onChange={(e) => setValues((v) => ({ ...v, [t.id]: e.target.value }))}
+                className="mt-0.5 w-full bg-transparent text-[15px] font-medium outline-none placeholder:opacity-50 focus:text-stone-900"
+              />
+            </label>
           ))}
         </div>
       )}
       {cfg.photo.enabled && (
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => fileRef.current?.click()} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-black/5 text-sm font-semibold hover:bg-black/10"><ImagePlus className="size-4" />{photo.img ? "Đổi ảnh" : "Chọn ảnh"}</button>
-          <button onClick={() => camRef.current?.click()} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-black/5 text-sm font-semibold hover:bg-black/10"><Camera className="size-4" />Selfie</button>
+          <button onClick={() => openCamera()} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-black/5 text-sm font-semibold hover:bg-black/10"><Camera className="size-4" />Selfie</button>
         </div>
       )}
       {hasPhoto && (
@@ -627,7 +691,7 @@ export function FrameStudio({
         </div>
       </section>
 
-      {editing && (() => {
+      {editing && !isDesktop && (() => {
         const idx = cfg.texts.findIndex((t) => t.id === editing);
         const t = cfg.texts[idx];
         if (!t) return null;
@@ -672,6 +736,15 @@ export function FrameStudio({
         );
       })()}
 
+      {camera && (
+        <CameraModal
+          accent={accent}
+          onClose={() => setCamera(false)}
+          onFallback={() => { setCamera(false); camRef.current?.click(); }}
+          onShot={(c) => { setCamera(false); applyPhoto(c); }}
+        />
+      )}
+
       {sheet && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm lg:hidden" onClick={() => setSheet(false)}>
           <div className="animate-in max-h-[80dvh] w-full overflow-y-auto rounded-t-[28px] bg-white p-5 text-stone-900" onClick={(e) => e.stopPropagation()}>
@@ -682,6 +755,104 @@ export function FrameStudio({
       )}
 
       {done && <DoneSheet campaign={campaign} done={done} server={done.server} allowCaption={allowed.caption} name={Object.values(values).find(Boolean)} accent={accent} onClose={() => setDone(null)} onShare={() => share(done.blob)} track={track} preview={preview} />}
+    </div>
+  );
+}
+
+function CameraModal({ accent, onClose, onShot, onFallback }: { accent: string; onClose: () => void; onShot: (c: HTMLCanvasElement) => void; onFallback: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const [facing, setFacing] = useState<"user" | "environment">("user");
+  const [ready, setReady] = useState(false);
+  const [err, setErr] = useState("");
+  const [count, setCount] = useState(0);
+  const [timer, setTimer] = useState(false);
+  const [canFlip, setCanFlip] = useState(false);
+  const fallback = useRef(onFallback);
+  fallback.current = onFallback;
+
+  useEffect(() => {
+    let alive = true;
+    setReady(false);
+    (async () => {
+      try {
+        stream.current?.getTracks().forEach((t) => t.stop());
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1920 } }, audio: false });
+        if (!alive) return s.getTracks().forEach((t) => t.stop());
+        stream.current = s;
+        if (video.current) {
+          video.current.srcObject = s;
+          await video.current.play().catch(() => {});
+        }
+        setReady(true);
+        const devs = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+        setCanFlip(devs.filter((d) => d.kind === "videoinput").length > 1);
+      } catch (e) {
+        const name = (e as DOMException)?.name;
+        if (name === "NotAllowedError") setErr("Bạn chưa cho phép dùng camera. Hãy bật quyền camera cho trang này trong cài đặt trình duyệt.");
+        else if (name === "NotFoundError" || name === "OverconstrainedError") setErr("Không tìm thấy camera trên thiết bị này.");
+        else fallback.current();
+      }
+    })();
+    return () => { alive = false; };
+  }, [facing]);
+  useEffect(() => () => stream.current?.getTracks().forEach((t) => t.stop()), []);
+
+  function snap() {
+    const v = video.current;
+    if (!v || !v.videoWidth) return;
+    const c = document.createElement("canvas");
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+    const x = c.getContext("2d")!;
+    if (facing === "user") { x.translate(c.width, 0); x.scale(-1, 1); } // keep the mirror image people saw
+    x.drawImage(v, 0, 0);
+    stream.current?.getTracks().forEach((t) => t.stop());
+    onShot(c);
+  }
+  function shoot() {
+    if (!timer) return snap();
+    let n = 3;
+    setCount(n);
+    const id = setInterval(() => {
+      n -= 1;
+      if (n <= 0) { clearInterval(id); setCount(0); snap(); } else setCount(n);
+    }, 1000);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex flex-col bg-black text-white">
+      <div className="flex items-center justify-between p-4">
+        <button onClick={onClose} className="grid size-10 place-items-center rounded-full bg-white/10" aria-label="Đóng"><X className="size-5" /></button>
+        <span className="text-sm font-semibold">Chụp selfie</span>
+        <button onClick={() => setTimer((t) => !t)} className={cx("rounded-full px-3 py-2 text-xs font-semibold", timer ? "bg-white text-black" : "bg-white/10")}>⏱ 3s</button>
+      </div>
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+        {err ? (
+          <div className="max-w-sm px-6 text-center text-sm">
+            <p>{err}</p>
+            <button onClick={onFallback} className="mt-4 rounded-full bg-white px-4 py-2 font-semibold text-black">Dùng ứng dụng camera / chọn ảnh</button>
+          </div>
+        ) : (
+          <>
+            <video ref={video} playsInline muted className={cx("max-h-full max-w-full object-contain", facing === "user" && "-scale-x-100")} />
+            {!ready && <Loader2 className="absolute size-8 animate-spin" />}
+            {count > 0 && <span className="absolute text-8xl font-bold drop-shadow-lg">{count}</span>}
+            <div className="pointer-events-none absolute inset-[12%] rounded-full border-2 border-dashed border-white/40 sm:inset-x-[30%]" />
+          </>
+        )}
+      </div>
+      {!err && (
+        <div className="flex items-center justify-around px-6 pb-[max(env(safe-area-inset-bottom),24px)] pt-5">
+          <span className="w-12" />
+          <button onClick={shoot} disabled={!ready || count > 0} aria-label="Chụp" className="grid size-20 place-items-center rounded-full border-4 border-white disabled:opacity-40">
+            <span className="size-16 rounded-full transition active:scale-90" style={{ background: accent }} />
+          </button>
+          {canFlip ? (
+            <button onClick={() => setFacing((f) => (f === "user" ? "environment" : "user"))} className="grid size-12 place-items-center rounded-full bg-white/10" aria-label="Đổi camera"><RotateCw className="size-5" /></button>
+          ) : <span className="w-12" />}
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { createSession, hashPassword } from "@/lib/auth";
 import { handle, ok, HttpError } from "@/lib/api";
 import { rateLimit } from "@/lib/ratelimit";
 import { defaultPlanId } from "@/lib/plans";
+import { getAccess } from "@/lib/site";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Vui lòng nhập họ tên").max(80),
@@ -20,6 +21,9 @@ export const POST = handle(async (req: Request) => {
 
   const count = await one<{ c: number }>("SELECT COUNT(*) AS c FROM users");
   const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  // signup can be closed by the Super Admin (the very first account and ADMIN_EMAIL always get through)
+  const access = await getAccess(true);
+  if (!access.allowSignup && Number(count?.c || 0) > 0 && body.email !== adminEmail) throw new HttpError(403, access.message);
   const isSuper = adminEmail ? adminEmail === body.email : Number(count?.c || 0) === 0;
 
   const id = nanoid(12);

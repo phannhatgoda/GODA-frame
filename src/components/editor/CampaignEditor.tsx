@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { api, Badge, Button, cx, Field, Input, Segmented, Select, Switch, Textarea, useToast } from "../ui";
 import { FramePlacer } from "./FramePlacer";
+import { useFitBox } from "../useFitBox";
 import { TemplateThumb } from "../TemplateThumb";
 import { detectTransparentSlot, loadImage } from "@/lib/client/render";
 import { DEFAULT_DESIGN, FONTS, TEMPLATE_PRESETS, TEMPLATES, type BgStyle, type CampaignPublic, type Design, type FontId, type FrameConfig, type TemplateId, type TextField, type Theme } from "@/lib/types";
@@ -167,7 +168,7 @@ export function CampaignEditor({ initial, perms, appUrl, others = [] }: { initia
           {tab === "share" && <ShareTab c={c} setC={setC} setTheme={setTheme} publicUrl={publicUrl} setStatus={setStatus} />}
         </div>
 
-        <div className="lg:sticky lg:top-24 lg:h-[calc(100dvh-8rem)]">
+        <div className="lg:sticky lg:top-24 lg:flex lg:h-[calc(100dvh-8rem)] lg:flex-col">
           <div className="mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2 text-sm font-semibold"><Eye className="size-4" /> Xem trước trực tiếp</span>
             <div className="flex items-center gap-2">
@@ -183,20 +184,15 @@ export function CampaignEditor({ initial, perms, appUrl, others = [] }: { initia
 }
 
 function PreviewFrame({ id, device, iframeRef, reloadKey }: { id: string; device: "mobile" | "desktop"; iframeRef: React.RefObject<HTMLIFrameElement | null>; reloadKey?: string }) {
-  const box = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(400);
-  useEffect(() => {
-    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
-    if (box.current) ro.observe(box.current);
-    return () => ro.disconnect();
-  }, []);
+  const { ref, scaleFor } = useFitBox();
+  const pad = device === "mobile" ? 24 : 0;
   const vw = device === "mobile" ? 390 : 1280;
   const vh = device === "mobile" ? 780 : 820;
-  const scale = Math.min(1, w / (vw + (device === "mobile" ? 24 : 0)));
+  const scale = scaleFor(vw + pad, vh + pad);
   return (
-    <div ref={box} className="w-full">
-      <div className="mx-auto overflow-hidden" style={{ width: (vw + (device === "mobile" ? 24 : 0)) * scale, height: (vh + (device === "mobile" ? 24 : 0)) * scale }}>
-        <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: vw + (device === "mobile" ? 24 : 0) }}>
+    <div ref={ref} className="w-full lg:min-h-0 lg:flex-1">
+      <div className="mx-auto overflow-hidden" style={{ width: (vw + pad) * scale, height: (vh + pad) * scale }}>
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: vw + pad }}>
           <div className={cx("bg-ink shadow-lift", device === "mobile" ? "rounded-[44px] p-3" : "rounded-xl p-0")}>
             <iframe key={reloadKey} ref={iframeRef} src={`/preview/${id}`} title="Xem trước" className={cx("block bg-white", device === "mobile" ? "rounded-[34px]" : "rounded-xl")} style={{ width: vw, height: vh }} />
           </div>

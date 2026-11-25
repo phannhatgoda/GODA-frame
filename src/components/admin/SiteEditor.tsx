@@ -7,6 +7,7 @@ import {
 import { api, Button, cx, Field, Input, Segmented, Select, Textarea, useToast } from "../ui";
 import { FEATURE_ICONS, newSection, SECTION_LABEL, type HomeSection, type SectionType, type SiteScope, type SiteSettings } from "@/lib/siteTypes";
 import { ICONS } from "../home/HomeView";
+import { useFitBox } from "../useFitBox";
 
 type Tab = "brand" | "home" | "seo";
 
@@ -243,7 +244,7 @@ export function SiteEditor({ initial, defaults, scope, endpoint, previewSrc, ogP
           )}
         </div>
 
-        <div className="lg:sticky lg:top-24 lg:h-[calc(100dvh-8rem)]">
+        <div className="lg:sticky lg:top-24 lg:flex lg:h-[calc(100dvh-8rem)] lg:flex-col">
           <div className="mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2 text-sm font-semibold"><Eye className="size-4" /> Xem trước trực tiếp</span>
             <Segmented value={device} onChange={setDevice} options={[{ value: "desktop", label: <Laptop className="size-4" /> }, { value: "mobile", label: <Smartphone className="size-4" /> }]} />
@@ -256,19 +257,13 @@ export function SiteEditor({ initial, defaults, scope, endpoint, previewSrc, ogP
 }
 
 function Preview({ iframeRef, device, src }: { iframeRef: React.RefObject<HTMLIFrameElement | null>; device: "desktop" | "mobile"; src: string }) {
-  const box = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(800);
+  const { ref, scaleFor } = useFitBox();
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
-    if (box.current) ro.observe(box.current);
-    return () => ro.disconnect();
-  }, []);
   const vw = device === "mobile" ? 390 : 1280;
   const vh = device === "mobile" ? 800 : 900;
-  const scale = Math.min(1, w / vw);
+  const scale = scaleFor(vw, vh);
   return (
-    <div ref={box} className="relative w-full">
+    <div ref={ref} className="relative w-full lg:min-h-0 lg:flex-1">
       {loading && <div className="absolute inset-0 z-10 grid place-items-center"><Loader2 className="size-6 animate-spin text-ink-3" /></div>}
       <div className="mx-auto overflow-hidden rounded-2xl border border-line bg-white shadow-lift" style={{ width: vw * scale, height: vh * scale }}>
         <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: vw }}>

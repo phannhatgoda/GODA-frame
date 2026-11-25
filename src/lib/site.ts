@@ -56,3 +56,25 @@ export async function saveUserSite(userId: string, v: SiteSettings) {
 export async function activeBrand(owner: { id: string }, perms: { whiteLabel: boolean }) {
   return perms.whiteLabel ? getUserSite(owner.id) : null;
 }
+
+/* ---------- Access control (Super Admin) ---------- */
+export interface AccessSettings { allowSignup: boolean; message: string }
+const DEFAULT_ACCESS: AccessSettings = { allowSignup: true, message: "Hệ thống đang tạm đóng đăng ký. Vui lòng liên hệ quản trị viên để được cấp tài khoản." };
+const accessCache = globalThis as unknown as { __godaAccess?: { at: number; v: AccessSettings } };
+
+export async function getAccess(fresh = false): Promise<AccessSettings> {
+  const c = accessCache.__godaAccess;
+  if (!fresh && c && Date.now() - c.at < 30_000) return c.v;
+  let v = DEFAULT_ACCESS;
+  try {
+    const r = await one<{ v: string }>("SELECT v FROM settings WHERE k = 'access'");
+    if (r) v = { ...DEFAULT_ACCESS, ...JSON.parse(r.v) };
+  } catch {}
+  accessCache.__godaAccess = { at: Date.now(), v };
+  return v;
+}
+
+export async function saveAccess(v: AccessSettings) {
+  await run("INSERT INTO settings (k, v, updated_at) VALUES ('access', ?, ?) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, updated_at = EXCLUDED.updated_at", [JSON.stringify(v), Date.now()]);
+  accessCache.__godaAccess = { at: Date.now(), v };
+}

@@ -1,8 +1,8 @@
 import { HomeView } from "@/components/home/HomeView";
 import { getUser } from "@/lib/auth";
-import { getSite } from "@/lib/site";
+import { getAccess, getSite } from "@/lib/site";
 
 export default async function Home() {
-  const [user, site] = await Promise.all([getUser(), getSite()]);
-  return <HomeView site={site} loggedIn={!!user} />;
+  const [user, site, access] = await Promise.all([getUser(), getSite(), getAccess()]);
+  return <HomeView site={site} loggedIn={!!user} signupOpen={access.allowSignup} />;
 }
