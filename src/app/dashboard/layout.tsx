@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/auth";
 const nav: NavItem[] = [
   { href: "/dashboard", label: "Tổng quan", icon: "grid", exact: true },
   { href: "/dashboard/new", label: "Tạo mới", icon: "plus" },
+  { href: "/dashboard/domains", label: "Tên miền", icon: "globe" },
+  { href: "/dashboard/integrations", label: "Tích hợp", icon: "code" },
   { href: "/dashboard/account", label: "Tài khoản", icon: "user" },
 ];
 

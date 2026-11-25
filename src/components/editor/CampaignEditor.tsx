@@ -588,6 +588,17 @@ function ShareTab({ c, setC, publicUrl, setStatus }: { c: CampaignPublic; setC: 
         </div>
       </section>
 
+      <section className="grid gap-3 sm:grid-cols-2">
+        <Link href="/dashboard/integrations" className="rounded-2xl border border-line bg-white p-5 shadow-soft transition hover:border-brand/40">
+          <div className="font-semibold">Nhúng vào website →</div>
+          <p className="mt-1 text-sm text-ink-3">Mã nút/popup hoặc khung nhúng cho landing page, WordPress, Ladipage…</p>
+        </Link>
+        <Link href="/dashboard/domains" className="rounded-2xl border border-line bg-white p-5 shadow-soft transition hover:border-brand/40">
+          <div className="font-semibold">Tên miền riêng →</div>
+          <p className="mt-1 text-sm text-ink-3">Chạy trang này trên frame.congty.vn thay cho link GODA.</p>
+        </Link>
+      </section>
+
       <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
         <h3 className="font-semibold">Tuỳ chỉnh đường link</h3>
         <div className="mt-3 flex gap-2">

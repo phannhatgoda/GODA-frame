@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   experimental: { serverActions: { bodySizeLimit: "12mb" } },
   async headers() {
     return [
+      // /embed/* is frameable by any site: we intentionally send no X-Frame-Options / frame-ancestors.
+      { source: "/widget.js", headers: [{ key: "Cache-Control", value: "public, max-age=3600" }, { key: "Access-Control-Allow-Origin", value: "*" }] },
       {
         source: "/:path*",
         headers: [

@@ -183,13 +183,13 @@ export function FramePlacer({ cfg, onChange, selected, onSelect }: { cfg: FrameC
   return (
     <div
       ref={wrapRef}
-      className="checker relative select-none overflow-hidden rounded-2xl border border-line touch-none"
+      className="relative select-none touch-none"
       onPointerDown={() => onSelect(null)}
       onPointerMove={move}
       onPointerUp={end}
       onPointerCancel={end}
     >
-      <canvas ref={canvasRef} width={cfg.width} height={cfg.height} className="pointer-events-none block h-auto w-full" />
+      <canvas ref={canvasRef} width={cfg.width} height={cfg.height} className="checker pointer-events-none block h-auto w-full rounded-2xl border border-line" />
       {snap.v && <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-fuchsia-500" />}
       {snap.h && <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-fuchsia-500" />}
       {boxes.map((b) => {

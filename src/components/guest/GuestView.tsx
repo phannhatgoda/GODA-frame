@@ -162,7 +162,7 @@ export function GuestView({ campaign, allowed, poweredBy, preview, embed }: { ca
 
   const vars = {
     "--r": `${t.radius}px`,
-    ...(embed ? { background: "transparent" } : background(t)),
+    ...background(t),
     color: text,
     fontFamily: FONTS[t.font].css,
   } as React.CSSProperties;
@@ -201,7 +201,7 @@ export function GuestView({ campaign, allowed, poweredBy, preview, embed }: { ca
       {eyebrow}
       <h1 className={cx("text-[34px] leading-[1.08] xl:text-[40px]", skin.headline)} style={t.template === "bold" ? { color: "#fff" } : undefined}>{t.headline}</h1>
       {t.subheadline && <p className="text-[15px] leading-relaxed opacity-75" style={t.template === "bold" ? { color: "#fff" } : undefined}>{t.subheadline}</p>}
-      {t.hashtag && <div className="text-sm font-bold" style={{ color: t.template === "festive" ? t.secondary : t.template === "bold" ? "#fff" : t.primary }}>{t.hashtag}</div>}
+      {t.hashtag && <div className="text-sm font-bold" style={{ color: t.template === "festive" ? t.secondary : t.template === "bold" || t.template === "glass" ? "#fff" : t.primary }}>{t.hashtag}</div>}
     </div>
   );
 
@@ -210,7 +210,7 @@ export function GuestView({ campaign, allowed, poweredBy, preview, embed }: { ca
       {logo("h-8 max-w-[96px] shrink-0")}
       <div className="min-w-0">
         <h1 className={cx("line-clamp-2 text-[17px] leading-tight", skin.headline)} style={t.template === "bold" ? { color: "#fff" } : undefined}>{t.headline}</h1>
-        {t.hashtag && <div className="truncate text-[11px] font-bold" style={{ color: t.template === "festive" ? t.secondary : t.template === "bold" ? "#fff" : t.primary }}>{t.hashtag}</div>}
+        {t.hashtag && <div className="truncate text-[11px] font-bold" style={{ color: t.template === "festive" ? t.secondary : t.template === "bold" || t.template === "glass" ? "#fff" : t.primary }}>{t.hashtag}</div>}
       </div>
     </div>
   );
@@ -247,7 +247,7 @@ export function GuestView({ campaign, allowed, poweredBy, preview, embed }: { ca
     <div style={vars} className={cx("relative h-dvh w-full overflow-hidden", skin.pageClass)}>
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link rel="stylesheet" href={fontHref} />
-      {!embed && skin.decor}
+      {skin.decor}
       <FrameStudio
         campaign={campaign}
         allowed={allowed}

@@ -15,6 +15,23 @@ Người tổ chức đăng ký tài khoản → tải frame/thiệp lên → tu
 ### Quyền riêng tư theo thiết kế
 Ảnh của khách **không bao giờ rời trình duyệt**: căn mặt, tách nền, ghép frame đều chạy on-device bằng Google MediaPipe (Apache-2.0). Máy chủ chỉ lưu frame/logo của người tổ chức và sự kiện thống kê ẩn danh (tên khách chỉ lưu khi người tổ chức bật "Ghi nhận tên khách"). Điểm này giúp giảm đáng kể rủi ro tuân thủ Nghị định 13/2023 về bảo vệ dữ liệu cá nhân.
 
+## Cập nhật v2
+
+- **Gói dịch vụ tuỳ biến** (`/admin/plans`): Super Admin tự tạo gói, tick chọn 10 chức năng + 3 hạn mức; ghi đè riêng cho từng tài khoản.
+- **Nhiều Super Admin**: tạo tài khoản trực tiếp (Khách hàng/Admin/Super Admin) từ `/admin/users`; hệ thống luôn giữ ≥ 1 Super Admin hoạt động.
+- **Trang khách 1 màn hình**: mobile dọc / desktop ngang, chạm thẳng vào ô tên, chức danh, ảnh trên khung để nhập. 8 giao diện, 4 kiểu nền.
+- **Kéo giãn trực quan** vùng ảnh & trường chữ bằng 8 tay nắm, hút giữa, phím mũi tên.
+- **Tên miền riêng** (`/dashboard/domains`): khách thêm `frame.congty.vn`, tạo bản ghi TXT (xác minh sở hữu) + CNAME → `cname.vercel-dns.com`, bấm Kiểm tra.
+  - Middleware rewrite `host/` → chiến dịch được gắn, `host/<slug>` → chiến dịch khác của cùng chủ.
+  - HTTPS trên Vercel: domain phải được thêm vào Vercel project. Tự động nếu đặt `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), nếu không admin thêm tay trong Vercel → Settings → Domains.
+  - Yêu cầu `NEXT_PUBLIC_APP_URL` (để phân biệt domain chính với domain khách).
+- **Nhúng** (`/dashboard/integrations`): `/embed/<slug>` + `widget.js` (nút + popup hoặc khung trong trang).
+  ```html
+  <div data-goda-frame="your-slug" data-mode="button" data-label="Tạo avatar"></div>
+  <script src="https://YOUR-APP/widget.js" async></script>
+  ```
+- **REST API v1** (Bearer `gf_live_…`, key lưu dạng SHA-256): `GET /api/v1/campaigns`, `GET /api/v1/campaigns/:id|slug?days=30`, `GET /api/v1/campaigns/:id/events?since=&type=&limit=`.
+
 ## Kiến trúc
 
 - **Next.js 15** (App Router, React 19) + Tailwind CSS 4 — một codebase cho UI và API.
@@ -70,12 +87,14 @@ Tài khoản **đăng ký đầu tiên** tự động là Super Admin (hoặc em
 | `ADMIN_EMAIL` | | Email sẽ là Super Admin khi đăng ký |
 | `DATABASE_URL` | ✅ | Postgres/Neon (dùng chuỗi **pooled**). Chấp nhận cả `POSTGRES_URL` |
 | `ANTHROPIC_API_KEY` | | Bật AI caption thật (model Claude Opus 5.5) |
+| `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` | | Tự gắn tên miền riêng của khách vào Vercel (HTTPS tự động) |
+| `APP_HOSTS` | | Thêm domain phụ của chính app (phân tách dấu phẩy) để không bị coi là domain khách |
+| `CUSTOM_DOMAIN_TARGET` | | Đích CNAME, mặc định `cname.vercel-dns.com` |
 
 ## Lộ trình đề xuất
 
 1. **Chuyển frame sang R2/Vercel Blob** khi tổng dung lượng vượt ~300MB (Neon free giới hạn 0,5GB).
 2. **Đăng nhập SSO** (Google Workspace / Microsoft 365) cho khách doanh nghiệp lớn như FPT.
 3. **Thanh toán & tự nâng gói** (VNPay/MoMo) thay cho admin cấp gói thủ công.
-4. **Custom domain** cho gói Business (`frame.congty.vn`).
 5. **Leaderboard phòng ban / bức tường avatar** (opt-in) — biến chiến dịch thành trò chơi gắn kết.
 6. Rate limiter phân tán (Redis) khi scale ngang.
