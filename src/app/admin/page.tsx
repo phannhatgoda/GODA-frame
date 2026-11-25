@@ -12,15 +12,15 @@ export default async function Page() {
   const since7 = Date.now() - 7 * 86400_000;
   const [s, users, newUsers, camps, live, storage, plans, top] = await Promise.all([
     getStats(null, 30),
-    one<{ c: number }>("SELECT COUNT(*) c FROM users"),
-    one<{ c: number }>("SELECT COUNT(*) c FROM users WHERE created_at >= ?", [since7]),
-    one<{ c: number }>("SELECT COUNT(*) c FROM campaigns"),
-    one<{ c: number }>("SELECT COUNT(*) c FROM campaigns WHERE status='published'"),
-    one<{ s: number }>("SELECT COALESCE(SUM(size),0) s FROM assets"),
-    all<{ label: string; value: number }>("SELECT plan label, COUNT(*) value FROM users WHERE role='user' GROUP BY plan ORDER BY value DESC"),
+    one<{ c: number }>("SELECT COUNT(*) AS c FROM users"),
+    one<{ c: number }>("SELECT COUNT(*) AS c FROM users WHERE created_at >= ?", [since7]),
+    one<{ c: number }>("SELECT COUNT(*) AS c FROM campaigns"),
+    one<{ c: number }>("SELECT COUNT(*) AS c FROM campaigns WHERE status='published'"),
+    one<{ s: number }>("SELECT COALESCE(SUM(size),0) AS s FROM assets"),
+    all<{ label: string; value: number }>("SELECT plan AS label, COUNT(*) AS value FROM users WHERE role='user' GROUP BY plan ORDER BY 2 DESC"),
     all<{ id: string; title: string; slug: string; owner: string; d: number }>(
-      `SELECT c.id, c.title, c.slug, u.name owner, COUNT(e.id) d FROM campaigns c JOIN users u ON u.id = c.owner_id
-       LEFT JOIN events e ON e.campaign_id = c.id AND e.type='download' GROUP BY c.id ORDER BY d DESC LIMIT 8`,
+      `SELECT c.id, c.title, c.slug, u.name AS owner, COUNT(e.id) AS d FROM campaigns c JOIN users u ON u.id = c.owner_id
+       LEFT JOIN events e ON e.campaign_id = c.id AND e.type='download' GROUP BY c.id, u.name ORDER BY d DESC LIMIT 8`,
     ),
   ]);
   return (

@@ -1,9 +1,13 @@
 import "server-only";
-import { mkdir, writeFile, readFile, stat } from "node:fs/promises";
-import path from "node:path";
 import { nanoid } from "nanoid";
+import { one, run } from "./db";
 
-export const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || "./data/uploads");
+/**
+ * Asset storage in Postgres (BYTEA). Serverless-friendly: no local disk needed.
+ * Frames/logos are small (≤ 4 MB after client-side compression) and served with
+ * immutable CDN caching, so the DB is hit roughly once per asset per edge region.
+ * To scale further, swap these two functions for S3/R2/Vercel Blob.
+ */
 
 const SIGNATURES: { mime: string; ext: string; test: (b: Buffer) => boolean }[] = [
   { mime: "image/png", ext: "png", test: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
@@ -19,25 +23,16 @@ export function sniffImage(buf: Buffer) {
 export async function saveImage(ownerId: string, buf: Buffer) {
   const kind = sniffImage(buf);
   if (!kind) throw new Error("UNSUPPORTED");
-  const safeOwner = ownerId.replace(/[^a-zA-Z0-9_-]/g, "");
-  const rel = `${safeOwner}/${nanoid(16)}.${kind.ext}`;
-  const abs = path.join(UPLOAD_DIR, rel);
-  await mkdir(path.dirname(abs), { recursive: true });
-  await writeFile(abs, buf);
-  return { rel, mime: kind.mime, size: buf.length };
+  const id = nanoid(16);
+  await run("INSERT INTO assets (id, owner_id, mime, size, data, created_at) VALUES (?,?,?,?,?,?)", [
+    id, ownerId, kind.mime, buf.length, buf, Date.now(),
+  ]);
+  return { url: `/api/files/${id}.${kind.ext}`, size: buf.length };
 }
 
-export async function readUpload(rel: string) {
-  const abs = path.resolve(UPLOAD_DIR, rel);
-  if (!abs.startsWith(UPLOAD_DIR + path.sep)) return null; // path traversal guard
-  try {
-    const s = await stat(abs);
-    if (!s.isFile()) return null;
-    const buf = await readFile(abs);
-    const kind = sniffImage(buf);
-    if (!kind) return null;
-    return { buf, mime: kind.mime };
-  } catch {
-    return null;
-  }
+export async function readAsset(name: string) {
+  const id = name.replace(/\.[a-z]+$/i, "");
+  if (!/^[A-Za-z0-9_-]{6,40}$/.test(id)) return null;
+  const r = await one<{ mime: string; data: Buffer }>("SELECT mime, data FROM assets WHERE id = ?", [id]);
+  return r ? { buf: Buffer.from(r.data), mime: r.mime } : null;
 }

@@ -13,7 +13,7 @@ const LABEL: Record<string, string> = {
 export default async function Page() {
   await requireAdmin();
   const logs = await all<{ id: number; action: string; target: string; detail: string; created_at: number; actor: string | null }>(
-    "SELECT l.*, u.email actor FROM audit_logs l LEFT JOIN users u ON u.id = l.actor_id ORDER BY l.id DESC LIMIT 300",
+    "SELECT l.*, u.email AS actor FROM audit_logs l LEFT JOIN users u ON u.id = l.actor_id ORDER BY l.id DESC LIMIT 300",
   );
   return (
     <>

@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",
-    "@libsql/client": "^0.18.0",
     "@mediapipe/tasks-vision": "^1.2.3",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -20,6 +19,7 @@
     "lucide-react": "^1.80.0",
     "nanoid": "^6.0.2",
     "next": "~15.5.29",
+    "postgres": "^4.1.1",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

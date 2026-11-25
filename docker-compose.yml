@@ -1,9 +1,16 @@
+# Tự host (VPS): app + Postgres. Trên Vercel không cần file này.
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment: { POSTGRES_USER: goda, POSTGRES_PASSWORD: goda, POSTGRES_DB: goda_frame }
+    volumes: ["pgdata:/var/lib/postgresql/data"]
   goda-frame:
     build: .
     restart: unless-stopped
+    depends_on: [db]
     ports: ["3000:3000"]
     env_file: .env
-    volumes: ["goda-data:/app/data"]
+    environment: { DATABASE_URL: "postgres://goda:goda@db:5432/goda_frame" }
 volumes:
-  goda-data:
+  pgdata:

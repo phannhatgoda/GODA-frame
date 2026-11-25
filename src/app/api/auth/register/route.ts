@@ -17,7 +17,7 @@ export const POST = handle(async (req: Request) => {
   const body = schema.parse(await req.json());
   if (await one("SELECT id FROM users WHERE email = ?", [body.email])) throw new HttpError(409, "Email đã được sử dụng");
 
-  const count = await one<{ c: number }>("SELECT COUNT(*) c FROM users");
+  const count = await one<{ c: number }>("SELECT COUNT(*) AS c FROM users");
   const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const isSuper = adminEmail ? adminEmail === body.email : Number(count?.c || 0) === 0;
 

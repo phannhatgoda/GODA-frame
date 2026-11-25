@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  serverExternalPackages: ["@libsql/client", "libsql"],
+  // Vercel builds its own output; "standalone" is for the Docker image.
+  output: process.env.VERCEL ? undefined : "standalone",
   experimental: { serverActions: { bodySizeLimit: "12mb" } },
   async headers() {
     return [

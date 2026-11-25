@@ -10,8 +10,8 @@ export const metadata = { title: "Tài khoản" };
 export default async function Page() {
   const u = await requireUser();
   const [used, count] = await Promise.all([
-    one<{ s: number }>("SELECT COALESCE(SUM(size),0) s FROM assets WHERE owner_id = ?", [u.id]),
-    one<{ c: number }>("SELECT COUNT(*) c FROM campaigns WHERE owner_id = ?", [u.id]),
+    one<{ s: number }>("SELECT COALESCE(SUM(size),0) AS s FROM assets WHERE owner_id = ?", [u.id]),
+    one<{ c: number }>("SELECT COUNT(*) AS c FROM campaigns WHERE owner_id = ?", [u.id]),
   ]);
   const mb = Number(used?.s || 0) / 1024 / 1024;
   const plan = PLANS[(u.plan as Plan) in PLANS ? (u.plan as Plan) : "free"];

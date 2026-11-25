@@ -30,9 +30,40 @@ const PALETTES = [
 
 type Tab = "frame" | "theme" | "share";
 
+const UPLOAD_LIMIT = 3.9 * 1024 * 1024; // serverless body limit (4.5MB) minus multipart overhead
+
+/** Downscale/re-encode large images in the browser. WebP keeps transparency, so frames stay intact. */
+async function compress(file: File): Promise<Blob> {
+  if (file.size <= UPLOAD_LIMIT) return file;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error("Ảnh không hợp lệ"));
+      i.src = url;
+    });
+    let max = 2400;
+    for (const q of [0.92, 0.85, 0.75, 0.65]) {
+      const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * s);
+      c.height = Math.round(img.naturalHeight * s);
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+      const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/webp", q));
+      if (blob && blob.size <= UPLOAD_LIMIT) return blob;
+      max = Math.round(max * 0.85);
+    }
+    throw new Error("Ảnh quá lớn, vui lòng dùng ảnh dưới 4MB");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 async function uploadFile(file: File) {
   const fd = new FormData();
-  fd.append("file", file);
+  const blob = await compress(file);
+  fd.append("file", blob, blob === file ? file.name : file.name.replace(/\.\w+$/, "") + ".webp");
   return api<{ url: string }>("/api/upload", { method: "POST", body: fd });
 }
 

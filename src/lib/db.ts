@@ -1,104 +1,141 @@
 import "server-only";
-import { createClient, type Client, type InValue } from "@libsql/client";
-import { mkdirSync } from "node:fs";
+import postgres from "postgres";
 
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  org_name TEXT,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'user',
-  status TEXT NOT NULL DEFAULT 'active',
-  plan TEXT NOT NULL DEFAULT 'free',
-  features TEXT NOT NULL DEFAULT '{}',
-  created_at INTEGER NOT NULL,
-  last_login_at INTEGER
-);
-CREATE TABLE IF NOT EXISTS campaigns (
-  id TEXT PRIMARY KEY,
-  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  slug TEXT NOT NULL UNIQUE,
-  type TEXT NOT NULL DEFAULT 'avatar',
-  title TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'draft',
-  theme TEXT NOT NULL DEFAULT '{}',
-  config TEXT NOT NULL DEFAULT '{}',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_campaigns_owner ON campaigns(owner_id);
-CREATE TABLE IF NOT EXISTS events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
-  type TEXT NOT NULL,
-  visitor_id TEXT,
-  device TEXT,
-  source TEXT,
-  meta TEXT,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_events_campaign_time ON events(campaign_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_events_time ON events(created_at);
-CREATE TABLE IF NOT EXISTS assets (
-  id TEXT PRIMARY KEY,
-  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  path TEXT NOT NULL,
-  mime TEXT NOT NULL,
-  size INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_assets_owner ON assets(owner_id);
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  actor_id TEXT,
-  action TEXT NOT NULL,
-  target TEXT,
-  detail TEXT,
-  created_at INTEGER NOT NULL
-);
-`;
+/**
+ * Postgres (Neon) data layer.
+ * Works on Vercel (Fluid compute reuses the pool across requests) and on any Postgres for local dev.
+ * Queries are written with `?` placeholders and converted to `$1, $2…` here.
+ */
 
-const g = globalThis as unknown as { __godaDb?: Client; __godaDbReady?: Promise<void> };
+const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    org_name TEXT,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    status TEXT NOT NULL DEFAULT 'active',
+    plan TEXT NOT NULL DEFAULT 'free',
+    features TEXT NOT NULL DEFAULT '{}',
+    created_at BIGINT NOT NULL,
+    last_login_at BIGINT
+  )`,
+  `CREATE TABLE IF NOT EXISTS campaigns (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    slug TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL DEFAULT 'avatar',
+    title TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    theme TEXT NOT NULL DEFAULT '{}',
+    config TEXT NOT NULL DEFAULT '{}',
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_campaigns_owner ON campaigns(owner_id)`,
+  `CREATE TABLE IF NOT EXISTS events (
+    id BIGSERIAL PRIMARY KEY,
+    campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    visitor_id TEXT,
+    device TEXT,
+    source TEXT,
+    meta TEXT,
+    created_at BIGINT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_events_campaign_time ON events(campaign_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_events_time ON events(created_at)`,
+  `CREATE TABLE IF NOT EXISTS assets (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    data BYTEA NOT NULL,
+    created_at BIGINT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_assets_owner ON assets(owner_id)`,
+  `CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    actor_id TEXT,
+    action TEXT NOT NULL,
+    target TEXT,
+    detail TEXT,
+    created_at BIGINT NOT NULL
+  )`,
+];
 
-function client(): Client {
-  if (!g.__godaDb) {
-    const url = process.env.DATABASE_URL || "file:./data/goda-frame.db";
-    if (url.startsWith("file:")) mkdirSync("./data", { recursive: true });
-    g.__godaDb = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN || undefined });
+type Sql = ReturnType<typeof postgres>;
+const g = globalThis as unknown as { __godaSql?: Sql; __godaReady?: Promise<void> };
+
+function dbUrl() {
+  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!url) throw new Error("DATABASE_URL chưa được cấu hình");
+  return url;
+}
+
+function sql(): Sql {
+  if (!g.__godaSql) {
+    const url = dbUrl();
+    const local = /localhost|127\.0\.0\.1/.test(url);
+    g.__godaSql = postgres(url, {
+      max: process.env.VERCEL ? 3 : 10,
+      idle_timeout: 20,
+      connect_timeout: 15,
+      prepare: false, // required behind Neon's PgBouncer pooler
+      ssl: local ? false : "require",
+      onnotice: () => {},
+      types: {
+        // COUNT(*), SUM(), BIGINT timestamps → JS number
+        bigint: { to: 20, from: [20], serialize: (v: number) => String(v), parse: (v: string) => Number(v) },
+        numeric: { to: 1700, from: [1700], serialize: (v: number) => String(v), parse: (v: string) => Number(v) },
+      },
+    });
   }
-  return g.__godaDb;
+  return g.__godaSql;
 }
 
 async function ready() {
-  if (!g.__godaDbReady) {
-    g.__godaDbReady = (async () => {
-      const c = client();
-      await c.execute("PRAGMA foreign_keys = ON").catch(() => {});
-      await c.execute("PRAGMA journal_mode = WAL").catch(() => {});
-      await c.executeMultiple(SCHEMA);
-    })();
+  if (!g.__godaReady) {
+    g.__godaReady = (async () => {
+      const s = sql();
+      // Fast path on warm DBs: one round-trip instead of re-running every DDL statement.
+      const [r] = await s.unsafe(`SELECT to_regclass('public.audit_logs') IS NOT NULL AS ok`);
+      if (r?.ok) return;
+      await s.begin(async (tx) => {
+        await tx.unsafe(`SELECT pg_advisory_xact_lock(424242)`); // avoid races between cold starts
+        for (const stmt of SCHEMA) await tx.unsafe(stmt);
+      });
+    })().catch((e) => {
+      g.__godaReady = undefined;
+      throw e;
+    });
   }
-  return g.__godaDbReady;
+  return g.__godaReady;
 }
 
 export type Row = Record<string, unknown>;
+type Param = string | number | boolean | null | Buffer | Uint8Array;
 
-export async function all<T = Row>(sql: string, args: InValue[] = []): Promise<T[]> {
-  await ready();
-  const r = await client().execute({ sql, args });
-  return r.rows.map((row) => ({ ...row }) as T);
+function toPg(q: string) {
+  let i = 0;
+  return q.replace(/\?/g, () => `$${++i}`);
 }
 
-export async function one<T = Row>(sql: string, args: InValue[] = []): Promise<T | null> {
-  const rows = await all<T>(sql, args);
+export async function all<T = Row>(q: string, args: Param[] = []): Promise<T[]> {
+  await ready();
+  const rows = await sql().unsafe(toPg(q), args as never[]);
+  return rows.map((r) => ({ ...r }) as T);
+}
+
+export async function one<T = Row>(q: string, args: Param[] = []): Promise<T | null> {
+  const rows = await all<T>(q, args);
   return rows[0] ?? null;
 }
 
-export async function run(sql: string, args: InValue[] = []) {
+export async function run(q: string, args: Param[] = []) {
   await ready();
-  return client().execute({ sql, args });
+  return sql().unsafe(toPg(q), args as never[]);
 }
 
 export async function audit(actorId: string | null, action: string, target?: string, detail?: unknown) {

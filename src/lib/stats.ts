@@ -5,7 +5,8 @@ export type EventType = "view" | "upload" | "ai_face" | "ai_bg" | "download" | "
 export const EVENT_TYPES: EventType[] = ["view", "upload", "ai_face", "ai_bg", "download", "share", "caption"];
 
 const DAY = 86_400_000;
-const TZ = "+7 hours"; // Asia/Ho_Chi_Minh
+// local (Asia/Ho_Chi_Minh) timestamp expression for event time stored as epoch ms
+const LOCAL_TS = "(to_timestamp(created_at / 1000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh')";
 
 export interface Stats {
   totals: Record<EventType, number>;
@@ -31,31 +32,31 @@ export async function getStats(ids: string[] | null, days = 30): Promise<Stats> 
   const since = Date.now() - days * DAY;
 
   const [byType, visitors, creators, daily, devices, sources, hours, perCampaign] = await Promise.all([
-    all<{ type: EventType; c: number }>(`SELECT type, COUNT(*) c FROM events WHERE ${s.where} GROUP BY type`, s.args),
-    one<{ c: number }>(`SELECT COUNT(DISTINCT visitor_id) c FROM events WHERE ${s.where} AND type='view'`, s.args),
-    one<{ c: number }>(`SELECT COUNT(DISTINCT visitor_id) c FROM events WHERE ${s.where} AND type='download'`, s.args),
+    all<{ type: EventType; c: number }>(`SELECT type, COUNT(*) AS c FROM events WHERE ${s.where} GROUP BY type`, s.args),
+    one<{ c: number }>(`SELECT COUNT(DISTINCT visitor_id) AS c FROM events WHERE ${s.where} AND type='view'`, s.args),
+    one<{ c: number }>(`SELECT COUNT(DISTINCT visitor_id) AS c FROM events WHERE ${s.where} AND type='download'`, s.args),
     all<{ d: string; type: string; c: number }>(
-      `SELECT date(created_at/1000,'unixepoch','${TZ}') d, type, COUNT(*) c FROM events
-       WHERE ${s.where} AND created_at >= ? AND type IN ('view','download') GROUP BY d, type`,
+      `SELECT to_char(${LOCAL_TS}, 'YYYY-MM-DD') AS d, type, COUNT(*) AS c FROM events
+       WHERE ${s.where} AND created_at >= ? AND type IN ('view','download') GROUP BY 1, 2`,
       [...s.args, since],
     ),
     all<{ label: string; value: number }>(
-      `SELECT COALESCE(device,'khác') label, COUNT(DISTINCT visitor_id) value FROM events
-       WHERE ${s.where} AND type='view' GROUP BY label ORDER BY value DESC`,
+      `SELECT COALESCE(device,'khác') AS label, COUNT(DISTINCT visitor_id) AS value FROM events
+       WHERE ${s.where} AND type='view' GROUP BY 1 ORDER BY 2 DESC`,
       s.args,
     ),
     all<{ label: string; value: number }>(
-      `SELECT COALESCE(NULLIF(source,''),'Trực tiếp') label, COUNT(DISTINCT visitor_id) value FROM events
-       WHERE ${s.where} AND type='view' GROUP BY label ORDER BY value DESC LIMIT 8`,
+      `SELECT COALESCE(NULLIF(source,''),'Trực tiếp') AS label, COUNT(DISTINCT visitor_id) AS value FROM events
+       WHERE ${s.where} AND type='view' GROUP BY 1 ORDER BY 2 DESC LIMIT 8`,
       s.args,
     ),
-    all<{ h: string; c: number }>(
-      `SELECT strftime('%H', created_at/1000,'unixepoch','${TZ}') h, COUNT(*) c FROM events
-       WHERE ${s.where} AND type='download' GROUP BY h`,
+    all<{ h: number; c: number }>(
+      `SELECT EXTRACT(HOUR FROM ${LOCAL_TS})::int AS h, COUNT(*) AS c FROM events
+       WHERE ${s.where} AND type='download' GROUP BY 1`,
       s.args,
     ),
     all<{ campaign_id: string; type: EventType; c: number }>(
-      `SELECT campaign_id, type, COUNT(*) c FROM events WHERE ${s.where} GROUP BY campaign_id, type`,
+      `SELECT campaign_id, type, COUNT(*) AS c FROM events WHERE ${s.where} GROUP BY campaign_id, type`,
       s.args,
     ),
   ]);

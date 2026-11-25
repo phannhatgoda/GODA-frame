@@ -18,7 +18,7 @@ Người tổ chức đăng ký tài khoản → tải frame/thiệp lên → tu
 ## Kiến trúc
 
 - **Next.js 15** (App Router, React 19) + Tailwind CSS 4 — một codebase cho UI và API.
-- **SQLite qua libSQL**: chạy file local, hoặc trỏ `DATABASE_URL` sang **Turso** để chạy serverless. Schema tự tạo khi khởi động.
+- **Postgres (Neon)** qua driver `postgres`: schema tự tạo ở lần truy vấn đầu tiên. Frame/logo lưu dạng `BYTEA` trong DB và được CDN cache vĩnh viễn — không cần ổ đĩa, chạy được trên Vercel. Ảnh > 4MB được nén WebP ngay trên trình duyệt trước khi upload (giới hạn body 4,5MB của Vercel).
 - **Auth**: bcrypt + JWT (httpOnly cookie, 30 ngày). Middleware chặn `/dashboard`, `/admin`; mọi API kiểm tra lại quyền ở server.
 - **Phân quyền tính năng**: `src/lib/features.ts` — gói định nghĩa mặc định, admin ghi đè từng tính năng cho từng user. Quyền được kiểm tra **tại thời điểm render** trang khách, nên hạ gói/khoá tài khoản có hiệu lực ngay.
 - **AI**: MediaPipe FaceDetector (BlazeFace) + ImageSegmenter (selfie multiclass). WASM tự host tại `/mediapipe/wasm`; model tải từ Google Storage lúc khách dùng lần đầu. AI caption dùng Claude API (tuỳ chọn — không có `ANTHROPIC_API_KEY` thì dùng caption mẫu).
@@ -44,7 +44,7 @@ src/
 ## Chạy local
 
 ```bash
-cp .env.example .env      # đặt AUTH_SECRET (>= 32 ký tự)
+cp .env.example .env      # đặt AUTH_SECRET (>= 32 ký tự) và DATABASE_URL (Neon branch hoặc Postgres local)
 npm install
 npm run dev               # http://localhost:3000
 ```
@@ -53,15 +53,13 @@ Tài khoản **đăng ký đầu tiên** tự động là Super Admin (hoặc em
 
 ## Triển khai
 
-**Docker (khuyến nghị — VPS, Railway, Render, Fly…)**
+**Vercel + Neon (khuyến nghị)**
 
-```bash
-docker compose up -d --build
-```
+1. Vercel → Project → **Storage** → **Create Database** → **Neon** → chọn region **Singapore** → Connect vào project. Vercel tự thêm `DATABASE_URL`.
+2. Settings → Environment Variables: thêm `AUTH_SECRET` (chạy `openssl rand -base64 48`), `NEXT_PUBLIC_APP_URL` (domain thật), tuỳ chọn `ADMIN_EMAIL`, `ANTHROPIC_API_KEY`.
+3. Redeploy. Bảng dữ liệu tự tạo ở request đầu tiên. `vercel.json` đặt function ở `sin1` (Singapore) cho cùng vùng với Neon.
 
-Dữ liệu (DB + file upload) nằm trong volume `/app/data` — nhớ backup volume này.
-
-**Serverless (Vercel…)**: dùng `DATABASE_URL=libsql://…` (Turso). Lưu ý: file upload hiện ghi ra đĩa local (`src/lib/storage.ts`) — trên serverless cần thay bằng S3/R2/Vercel Blob trước khi deploy.
+**Tự host (VPS)**: `docker compose up -d --build` — chạy kèm Postgres, dữ liệu ở volume `pgdata`.
 
 ## Biến môi trường
 
@@ -70,13 +68,12 @@ Dữ liệu (DB + file upload) nằm trong volume `/app/data` — nhớ backup v
 | `AUTH_SECRET` | ✅ | Khoá ký phiên đăng nhập, ≥ 32 ký tự |
 | `NEXT_PUBLIC_APP_URL` | ✅ (prod) | Domain công khai, dùng tạo link & QR |
 | `ADMIN_EMAIL` | | Email sẽ là Super Admin khi đăng ký |
-| `DATABASE_URL` / `DATABASE_AUTH_TOKEN` | | Mặc định `file:./data/goda-frame.db` |
-| `UPLOAD_DIR` | | Mặc định `./data/uploads` |
+| `DATABASE_URL` | ✅ | Postgres/Neon (dùng chuỗi **pooled**). Chấp nhận cả `POSTGRES_URL` |
 | `ANTHROPIC_API_KEY` | | Bật AI caption thật (model Claude Opus 5.5) |
 
 ## Lộ trình đề xuất
 
-1. **Storage S3/R2** + CDN cho frame (bắt buộc nếu chạy nhiều instance/serverless).
+1. **Chuyển frame sang R2/Vercel Blob** khi tổng dung lượng vượt ~300MB (Neon free giới hạn 0,5GB).
 2. **Đăng nhập SSO** (Google Workspace / Microsoft 365) cho khách doanh nghiệp lớn như FPT.
 3. **Thanh toán & tự nâng gói** (VNPay/MoMo) thay cho admin cấp gói thủ công.
 4. **Custom domain** cho gói Business (`frame.congty.vn`).
