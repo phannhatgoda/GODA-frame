@@ -34,6 +34,24 @@ function useFonts(cfg: FrameConfig) {
   return ready;
 }
 
+/** Height of the on-screen keyboard (iOS keeps the layout viewport, so fixed bars need this offset). */
+function useKeyboardOffset(active: boolean) {
+  const [o, setO] = useState(0);
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!active || !vv) return setO(0);
+    const f = () => setO(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    f();
+    vv.addEventListener("resize", f);
+    vv.addEventListener("scroll", f);
+    return () => {
+      vv.removeEventListener("resize", f);
+      vv.removeEventListener("scroll", f);
+    };
+  }, [active]);
+  return o;
+}
+
 /** Largest W:H box that fits inside the element. */
 function useFit(ar: number) {
   const ref = useRef<HTMLDivElement>(null);
@@ -131,6 +149,7 @@ export function FrameStudio({
   const [sheet, setSheet] = useState(false);
   const [filterId, setFilterId] = useState("none");
   const fontsReady = useFonts(cfg);
+  const kb = useKeyboardOffset(!!editing);
   const { ref: fitRef, size } = useFit(cfg.width / cfg.height);
   const scale = size.w / cfg.width; // css px per frame px
 
@@ -143,7 +162,7 @@ export function FrameStudio({
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const id = requestAnimationFrame(() => render(c.getContext("2d")!, cfg, { frame, photo, values, hideText: editing }));
+    const id = requestAnimationFrame(() => render(c.getContext("2d")!, cfg, { frame, photo, values }));
     return () => cancelAnimationFrame(id);
   }, [cfg, frame, photo, values, fontsReady, editing]);
 
@@ -238,10 +257,7 @@ export function FrameStudio({
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ d: number; mx: number; my: number } | null>(null);
   function onPointerDown(e: React.PointerEvent) {
-    if (!photo.img) {
-      if (cfg.photo.enabled) fileRef.current?.click();
-      return;
-    }
+    if (!photo.img) return; // only the photo-slot button opens the picker
     setEditing(null);
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -376,7 +392,7 @@ export function FrameStudio({
               ref={canvasRef}
               width={cfg.width}
               height={cfg.height}
-              className={cx("absolute inset-0 size-full touch-none", photo.img ? "cursor-grab active:cursor-grabbing" : cfg.photo.enabled && "cursor-pointer")}
+              className={cx("absolute inset-0 size-full touch-none", photo.img && "cursor-grab active:cursor-grabbing")}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -412,48 +428,20 @@ export function FrameStudio({
               const val = values[t.id] || "";
               const isEditing = editing === t.id;
               const style = { left: b.x * scale, top: b.y * scale, width: b.w * scale, height: b.h * scale };
-              if (isEditing)
-                return (
-                  <input
-                    key={t.id}
-                    autoFocus
-                    value={val}
-                    maxLength={60}
-                    placeholder={t.placeholder}
-                    enterKeyHint="done"
-                    onChange={(e) => setValues((v) => ({ ...v, [t.id]: e.target.value }))}
-                    onBlur={() => setEditing(null)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
-                    className="absolute z-20 rounded-xl bg-white px-3 text-stone-900 shadow-2xl outline-none ring-[3px] placeholder:text-stone-400"
-                    style={{
-                      left: style.left,
-                      width: style.width,
-                      // never smaller than a comfortable touch target, centred on the field
-                      height: Math.max(46, style.height),
-                      top: style.top + style.height / 2 - Math.max(46, style.height) / 2,
-                      ["--tw-ring-color" as string]: accent,
-                      fontFamily: FONTS[t.font].css,
-                      fontWeight: Math.min(t.weight, 700),
-                      textAlign: t.align,
-                      textTransform: t.uppercase ? "uppercase" : undefined,
-                      fontSize: Math.min(28, Math.max(16, t.fontSize * scale * 0.7)), // ≥16px: no iOS zoom
-                    }}
-                  />
-                );
               return (
                 <button
                   key={t.id}
                   onClick={() => setEditing(t.id)}
-                  className={cx("group absolute z-10 rounded-lg transition", !val && "border-2 border-dashed border-current/50 bg-white/30")}
-                  style={{ ...style, color: t.color }}
+                  className={cx("group absolute z-10 rounded-lg transition", isEditing ? "ring-[3px] ring-offset-2 ring-offset-transparent" : !val && "border-2 border-dashed border-current/50 bg-white/30")}
+                  style={{ ...style, color: t.color, ...(isEditing ? { ["--tw-ring-color" as string]: accent, background: "rgba(255,255,255,.08)" } : {}) }}
                   aria-label={`Sửa ${t.label}`}
                 >
-                  {!val && (
+                  {!val && !isEditing && (
                     <span className="absolute inset-0 flex items-center justify-center gap-1.5 px-2 text-[13px] font-semibold" style={{ fontSize: Math.min(15, Math.max(12, t.fontSize * scale * 0.45)) }}>
                       <Pencil className="size-3.5 shrink-0" /> <span className="truncate">Chạm để nhập {t.label.toLowerCase()}</span>
                     </span>
                   )}
-                  {val && <span className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-white text-stone-700 opacity-80 shadow-md group-hover:opacity-100"><Pencil className="size-3" /></span>}
+                  {val && !isEditing && <span className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-white text-stone-700 opacity-80 shadow-md group-hover:opacity-100"><Pencil className="size-3" /></span>}
                 </button>
               );
             })}
@@ -629,7 +617,7 @@ export function FrameStudio({
             <button onClick={() => setSheet(true)} className={cx("grid size-9 shrink-0 place-items-center rounded-full", surface)} aria-label="Thông tin"><Info className="size-[18px]" /></button>
           </div>
         )}
-        {!embed && chrome.mobileInfo && <div className="px-4 lg:hidden">{chrome.mobileInfo}</div>}
+        {!embed && !editing && chrome.mobileInfo && <div className="px-4 lg:hidden">{chrome.mobileInfo}</div>}
         {chrome.tabs && <div className="px-4 pt-2 lg:hidden">{chrome.tabs}</div>}
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3 lg:px-10 lg:py-8">{canvasBox}</div>
         <div className="space-y-2 pb-[max(env(safe-area-inset-bottom),10px)] lg:hidden">
@@ -638,6 +626,51 @@ export function FrameStudio({
           {!embed && chrome.mobileFooter && <div className="px-4">{chrome.mobileFooter}</div>}
         </div>
       </section>
+
+      {editing && (() => {
+        const idx = cfg.texts.findIndex((t) => t.id === editing);
+        const t = cfg.texts[idx];
+        if (!t) return null;
+        const next = cfg.texts[idx + 1];
+        const val = values[t.id] || "";
+        return (
+          <div className="fixed inset-x-0 z-[70] px-2 pb-2 lg:inset-x-auto lg:right-10 lg:w-[460px]" style={{ bottom: kb }}>
+            <div className="animate-in rounded-2xl bg-white p-3 text-stone-900 shadow-[0_-8px_40px_-8px_rgb(0_0_0/.35)] ring-1 ring-black/5">
+              <div className="mb-1.5 flex items-center justify-between px-1 text-xs font-semibold text-stone-500">
+                <span>{t.label}{t.required && " *"}{cfg.texts.length > 1 && <span className="font-normal"> · {idx + 1}/{cfg.texts.length}</span>}</span>
+                <span className="tabular-nums font-normal">{val.length}/60</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  key={t.id}
+                  autoFocus
+                  value={val}
+                  maxLength={60}
+                  placeholder={t.placeholder}
+                  enterKeyHint={next ? "next" : "done"}
+                  autoComplete={t.id === "name" ? "name" : "off"}
+                  autoCapitalize="words"
+                  onChange={(e) => setValues((v) => ({ ...v, [t.id]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditing(next ? next.id : null); } }}
+                  onBlur={(e) => { if (!(e.relatedTarget as HTMLElement | null)?.closest("[data-editor-bar]")) setTimeout(() => setEditing((cur) => (cur === t.id ? null : cur)), 120); }}
+                  className="h-12 min-w-0 flex-1 rounded-xl border-2 border-stone-200 bg-white px-3.5 text-[17px] font-medium text-stone-900 outline-none placeholder:text-stone-400 focus:border-current"
+                  style={{ color: "#17120E", borderColor: accent }}
+                />
+                <button
+                  data-editor-bar
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setEditing(next ? next.id : null)}
+                  className="h-12 shrink-0 rounded-xl px-4 text-sm font-semibold"
+                  style={{ background: accent, color: accentInk }}
+                >
+                  {next ? "Tiếp" : "Xong"}
+                </button>
+              </div>
+              <p className="mt-1.5 px-1 text-[11px] text-stone-400">Chữ hiển thị trực tiếp trên thiệp và tự co cho vừa khung.</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {sheet && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm lg:hidden" onClick={() => setSheet(false)}>
