@@ -18,12 +18,24 @@ export async function loadCampaign(by: { slug?: string; id?: string; ownerId?: s
   return { c, owner, perms: await featuresFor(owner) };
 }
 
+export function shareImageFor(c: Campaign) {
+  const t = c.theme;
+  if (t.shareImage === "custom" && t.shareImageUrl) return { url: t.shareImageUrl };
+  if (t.shareImage === "cover" && t.coverUrl) return { url: t.coverUrl };
+  if (t.shareImage === "frame" && c.config.frameUrl) return { url: c.config.frameUrl, width: c.config.width, height: c.config.height };
+  // auto: composed 1200×630 card (frame + headline), cache-busted on every edit
+  return { url: `/api/og/${c.slug}?v=${c.updated_at}`, width: 1200, height: 630 };
+}
+
 export function campaignMetadata(c: Campaign | undefined): Metadata {
   if (!c) return { title: "Không tìm thấy" };
+  const img = shareImageFor(c);
+  const title = c.theme.headline || c.title;
   return {
-    title: { absolute: c.theme.headline || c.title },
+    title: { absolute: title },
     description: c.theme.subheadline,
-    openGraph: { title: c.theme.headline || c.title, description: c.theme.subheadline, images: c.theme.coverUrl ? [c.theme.coverUrl] : c.config.frameUrl.startsWith("/api/") ? [c.config.frameUrl] : [] },
+    openGraph: { title, description: c.theme.subheadline, type: "website", images: [{ ...img, alt: title }] },
+    twitter: { card: "summary_large_image", title, description: c.theme.subheadline, images: [img.url] },
   };
 }
 

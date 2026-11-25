@@ -164,7 +164,7 @@ export function CampaignEditor({ initial, perms, appUrl, others = [] }: { initia
           <Segmented<Tab> value={tab} onChange={setTab} className="mb-5 w-full sm:w-auto" options={[{ value: "frame", label: "① Frame & bố cục" }, { value: "theme", label: "② Giao diện trang" }, { value: "share", label: "③ Chia sẻ" }]} />
           {tab === "frame" && <FrameTab c={c} setConfig={setConfig} perms={perms} selected={selected} setSelected={setSelected} />}
           {tab === "theme" && <ThemeTab theme={c.theme} setTheme={setTheme} perms={perms} others={others} type={c.type} />}
-          {tab === "share" && <ShareTab c={c} setC={setC} publicUrl={publicUrl} setStatus={setStatus} />}
+          {tab === "share" && <ShareTab c={c} setC={setC} setTheme={setTheme} publicUrl={publicUrl} setStatus={setStatus} />}
         </div>
 
         <div className="lg:sticky lg:top-24 lg:h-[calc(100dvh-8rem)]">
@@ -595,7 +595,10 @@ function ThemeTab({ theme, setTheme, perms, others, type }: { theme: Theme; setT
 }
 
 /* ---------------- Share tab ---------------- */
-function ShareTab({ c, setC, publicUrl, setStatus }: { c: CampaignPublic; setC: React.Dispatch<React.SetStateAction<CampaignPublic>>; publicUrl: string; setStatus: (s: "draft" | "published" | "archived") => void }) {
+function ShareTab({ c, setC, setTheme, publicUrl, setStatus }: { c: CampaignPublic; setC: React.Dispatch<React.SetStateAction<CampaignPublic>>; setTheme: (p: Partial<Theme>) => void; publicUrl: string; setStatus: (s: "draft" | "published" | "archived") => void }) {
+  const [ogTick, setOgTick] = useState(0);
+  // the auto image reflects the saved campaign → refresh shortly after edits are autosaved
+  useEffect(() => { const t = setTimeout(() => setOgTick(Date.now()), 1800); return () => clearTimeout(t); }, [c.theme, c.config]);
   const toast = useToast();
   const router = useRouter();
   const [qr, setQr] = useState("");
@@ -652,6 +655,37 @@ function ShareTab({ c, setC, publicUrl, setStatus }: { c: CampaignPublic; setC: 
           <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl border border-line bg-white px-3.5 font-mono text-sm"><span className="truncate">{publicUrl}</span></div>
           <Button variant="dark" className="h-11" onClick={() => copy(publicUrl)}><Copy className="size-4" /> Sao chép</Button>
         </div>
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <div>
+          <h3 className="font-semibold">Ảnh thumbnail khi chia sẻ link</h3>
+          <p className="text-sm text-ink-3">Ảnh hiện khi gửi link qua Zalo, Facebook, Messenger, Teams… Mặc định ghép từ frame bạn tải lên.</p>
+        </div>
+        <Segmented className="w-full" value={c.theme.shareImage || "auto"} onChange={(v) => setTheme({ shareImage: v })}
+          options={[{ value: "auto", label: "Frame + tiêu đề" }, { value: "frame", label: "Chỉ frame" }, { value: "cover", label: "Ảnh bìa" }, { value: "custom", label: "Ảnh riêng" }]} />
+        {c.theme.shareImage === "custom" && <ImagePick label="Ảnh thumbnail riêng" value={c.theme.shareImageUrl || ""} onChange={(u) => setTheme({ shareImageUrl: u })} hint="Khuyến nghị 1200×630" />}
+        {c.theme.shareImage === "cover" && !c.theme.coverUrl && <p className="text-xs text-amber-700">Chưa có ảnh bìa — tải ở tab Giao diện trang, mục Thương hiệu.</p>}
+        <div className="overflow-hidden rounded-xl border border-line">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={
+              c.theme.shareImage === "custom" && c.theme.shareImageUrl ? c.theme.shareImageUrl
+              : c.theme.shareImage === "cover" && c.theme.coverUrl ? c.theme.coverUrl
+              : c.theme.shareImage === "frame" ? c.config.frameUrl
+              : `/api/og/${c.slug}?preview=${ogTick}`
+            }
+            alt="Thumbnail khi chia sẻ"
+            className="aspect-[1200/630] w-full bg-stone-100 object-contain"
+          />
+          <div className="bg-stone-50 p-3">
+            <div className="text-[11px] uppercase text-ink-3">{publicUrl.replace(/^https?:\/\//, "").split("/")[0]}</div>
+            <div className="line-clamp-1 font-semibold">{c.theme.headline || c.title}</div>
+            <div className="line-clamp-2 text-sm text-ink-3">{c.theme.subheadline}</div>
+          </div>
+        </div>
+        {c.status === "draft" && <p className="text-xs text-ink-3">Ảnh tự tạo chỉ hiển thị khi chiến dịch đã xuất bản.</p>}
+        <p className="text-xs text-ink-3">Zalo/Facebook lưu đệm ảnh cũ — nếu đã chia sẻ link trước đó, dùng <a className="underline" href="https://developers.facebook.com/tools/debug/" target="_blank">Facebook Sharing Debugger</a> để làm mới.</p>
       </section>
 
       <section className="grid gap-5 rounded-2xl border border-line bg-white p-5 shadow-soft sm:grid-cols-[180px_1fr]">

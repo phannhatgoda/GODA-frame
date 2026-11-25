@@ -82,6 +82,9 @@ export interface Theme {
   caption: string;
   showPoweredBy: boolean;
   design: Design;
+  /** link preview image: auto = composed from frame + headline; frame = the raw frame; cover; custom upload */
+  shareImage: "auto" | "frame" | "cover" | "custom";
+  shareImageUrl: string;
   tabLabel: string;
   companions: Companion[];
 }
@@ -164,6 +167,8 @@ export function defaultTheme(type: "avatar" | "invitation", title: string): Them
     caption: "",
     showPoweredBy: true,
     design: { ...DEFAULT_DESIGN },
+    shareImage: "auto",
+    shareImageUrl: "",
     tabLabel: "",
     companions: [],
   };

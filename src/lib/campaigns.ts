@@ -93,6 +93,8 @@ export const themeSchema = z.object({
       customCss: z.string().max(6000).transform(sanitizeCss),
     })
     .default(DEFAULT_DESIGN),
+  shareImage: z.enum(["auto", "frame", "cover", "custom"]).default("auto"),
+  shareImageUrl: url.default(""),
   tabLabel: z.string().max(30).default(""),
   companions: z.array(z.object({ campaignId: z.string().max(40), label: z.string().max(30) })).max(4).default([]),
 });

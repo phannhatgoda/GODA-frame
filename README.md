@@ -39,6 +39,11 @@ Người tổ chức đăng ký tài khoản → tải frame/thiệp lên → tu
 - Gộp nhiều trải nghiệm trên một link (thiệp mời + frame avatar…) dạng tab — cấu hình trong tab Giao diện → "Gộp nhiều trải nghiệm".
 - "Tự thiết kế": mẫu trang trắng + tuỳ chỉnh kiểu khối, kiểu nút, căn lề, cỡ/độ đậm tiêu đề, độ phủ ảnh nền, ẩn/hiện từng thành phần, CSS tuỳ chỉnh (gói cao cấp, đã lọc @import/script/url ngoài).
 
+## Cập nhật v4
+
+- **Giao diện hệ thống** (`/admin/site`, chỉ Super Admin): tên thương hiệu, logo, favicon, màu chủ đạo/màu tối (áp toàn app qua biến CSS), SEO (title, description, ảnh chia sẻ mặc định) và nội dung trang chủ dạng khối — kéo thả sắp xếp, ẩn/hiện, nhân bản, thêm khối (Banner, Các bước, Lưới tính năng, Khối kêu gọi, Đoạn văn). Xem trước trực tiếp desktop/mobile; **bấm vào phần bất kỳ trên bản xem trước để mở đúng khối cần sửa**.
+- **Thumbnail chia sẻ link** (`/api/og/<slug>`): mặc định tự ghép frame của chiến dịch + tiêu đề + nút theo màu chiến dịch (1200×630, font tiếng Việt), hoặc chọn Chỉ frame / Ảnh bìa / Ảnh riêng trong tab Chia sẻ. `/api/og/site` là ảnh mặc định của hệ thống.
+
 ## Kiến trúc
 
 - **Next.js 15** (App Router, React 19) + Tailwind CSS 4 — một codebase cho UI và API.

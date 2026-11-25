@@ -105,10 +105,12 @@ const SCHEMA = [
     created_at BIGINT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_temp_files_time ON temp_files(created_at)`,
+  // v4 — platform settings (branding, homepage content)
+  `CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL, updated_at BIGINT NOT NULL)`,
 ];
 
 /** Bump when SCHEMA changes; every statement above must stay idempotent. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 type Sql = ReturnType<typeof postgres>;
 const g = globalThis as unknown as { __godaSql?: Sql; __godaReady?: Promise<void> };

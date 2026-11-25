@@ -186,16 +186,41 @@ export async function api<T = unknown>(url: string, init?: RequestInit & { json?
   return data as T;
 }
 
-export function Logo({ className, dark }: { className?: string; dark?: boolean }) {
+/* ---------- Platform branding (set by the Super Admin) ---------- */
+type Brand = { name: string; logoUrl: string };
+const SiteCtx = createContext<Brand>({ name: "GODA.Frame", logoUrl: "" });
+export const useBrand = () => useContext(SiteCtx);
+export function SiteProvider({ value, children }: { value: Brand; children: ReactNode }) {
+  return <SiteCtx.Provider value={value}>{children}</SiteCtx.Provider>;
+}
+
+export function BrandName({ name, dark }: { name: string; dark?: boolean }) {
+  const i = name.indexOf(".");
+  return (
+    <span className={dark ? "text-white" : "text-ink"}>
+      {i > 0 ? <>{name.slice(0, i)}<span className="text-brand">.</span>{name.slice(i + 1)}</> : name}
+    </span>
+  );
+}
+
+export function Logo({ className, dark, brand }: { className?: string; dark?: boolean; brand?: Brand }) {
+  const ctx = useBrand();
+  const b = brand ?? ctx;
   return (
     <span className={cx("inline-flex items-center gap-2 font-bold tracking-tight", className)}>
-      <span className="relative grid size-8 place-items-center rounded-[10px] bg-ink text-white">
-        <span className="absolute inset-[5px] rounded-[6px] border-2 border-brand" />
-        <span className="relative text-[13px] font-extrabold">G</span>
-      </span>
-      <span className={dark ? "text-white" : "text-ink"}>
-        GODA<span className="text-brand">.</span>Frame
-      </span>
+      {b.logoUrl ? (
+        // an uploaded logo usually already contains the wordmark
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={b.logoUrl} alt={b.name} className="h-8 w-auto max-w-[180px] object-contain" />
+      ) : (
+        <>
+          <span className="relative grid size-8 place-items-center rounded-[10px] bg-ink text-white">
+            <span className="absolute inset-[5px] rounded-[6px] border-2 border-brand" />
+            <span className="relative text-[13px] font-extrabold">{(b.name[0] || "G").toUpperCase()}</span>
+          </span>
+          <BrandName name={b.name} dark={dark} />
+        </>
+      )}
     </span>
   );
 }

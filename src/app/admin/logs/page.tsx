@@ -8,7 +8,7 @@ const LABEL: Record<string, string> = {
   "user.register": "Đăng ký tài khoản", "campaign.create": "Tạo chiến dịch", "campaign.published": "Xuất bản chiến dịch",
   "campaign.draft": "Tạm dừng chiến dịch", "campaign.archived": "Lưu trữ chiến dịch", "campaign.delete": "Xoá chiến dịch",
   "admin.user.update": "Cập nhật người dùng", "admin.user.delete": "Xoá người dùng", "admin.user.create": "Tạo tài khoản",
-  "admin.plan.create": "Tạo gói", "admin.plan.update": "Sửa gói", "admin.plan.delete": "Xoá gói", "domain.add": "Thêm tên miền", "domain.verify": "Xác minh tên miền", "domain.delete": "Xoá tên miền", "apikey.create": "Tạo API key", "apikey.delete": "Thu hồi API key",
+  "admin.plan.create": "Tạo gói", "admin.site.update": "Sửa giao diện hệ thống", "admin.plan.update": "Sửa gói", "admin.plan.delete": "Xoá gói", "domain.add": "Thêm tên miền", "domain.verify": "Xác minh tên miền", "domain.delete": "Xoá tên miền", "apikey.create": "Tạo API key", "apikey.delete": "Thu hồi API key",
 };
 
 export default async function Page() {
