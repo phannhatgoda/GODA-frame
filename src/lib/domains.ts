@@ -100,3 +100,28 @@ export async function vercelRemoveDomain(host: string) {
 export async function findVerifiedDomain(host: string) {
   return one<DomainRow>("SELECT * FROM domains WHERE hostname = ? AND verified_at IS NOT NULL", [host.toLowerCase()]);
 }
+
+export interface VercelChallenge { type: string; domain: string; value: string; reason?: string }
+
+/**
+ * Vercel may require its own TXT challenge (e.g. when the apex domain is already used by another
+ * Vercel account). Ask Vercel to (re)verify and return any records still pending.
+ */
+export async function vercelDomainStatus(host: string): Promise<{ verified: boolean; challenges: VercelChallenge[] } | null> {
+  const v = vercelCfg();
+  if (!v) return null;
+  const q = v.team;
+  const auth = { Authorization: `Bearer ${v.token}` };
+  try {
+    let r = await fetch(`https://api.vercel.com/v9/projects/${v.project}/domains/${host}${q}`, { headers: auth, cache: "no-store" });
+    if (!r.ok) return null;
+    let d = (await r.json()) as { verified: boolean; verification?: VercelChallenge[] };
+    if (!d.verified) {
+      r = await fetch(`https://api.vercel.com/v9/projects/${v.project}/domains/${host}/verify${q}`, { method: "POST", headers: auth });
+      if (r.ok) d = (await r.json()) as typeof d;
+    }
+    return { verified: !!d.verified, challenges: d.verified ? [] : d.verification || [] };
+  } catch {
+    return null;
+  }
+}

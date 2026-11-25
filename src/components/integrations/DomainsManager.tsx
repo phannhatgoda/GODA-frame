@@ -5,7 +5,7 @@ import { CheckCircle2, Copy, ExternalLink, Globe, Loader2, Lock, RefreshCw, Tras
 import { api, Badge, Button, Input, Select, useToast } from "../ui";
 
 type D = { id: string; hostname: string; campaign_id: string | null; verify_token: string; verified_at: number | null };
-type Check = { txtOk: boolean; routeOk: boolean; verified: boolean; vercel: { ok: boolean; message?: string }; automation: boolean; found: { txt: string[]; cname: string[]; a: string[] } };
+type Check = { txtOk: boolean; routeOk: boolean; verified: boolean; vercel: { ok: boolean; message?: string }; automation: boolean; found: { txt: string[]; cname: string[]; a: string[] }; platform: { verified: boolean; challenges: { type: string; domain: string; value: string }[] } | null };
 
 export function DomainsManager({ domains, campaigns, allowed, max, target, apexA, txtPrefix }: { domains: D[]; campaigns: { id: string; title: string; slug: string }[]; allowed: boolean; max: number; target: string; apexA: string; txtPrefix: string }) {
   const router = useRouter();
@@ -72,6 +72,14 @@ function DomainCard({ d, campaigns, target, apexA, txtPrefix }: { d: D; campaign
     sub
       ? { type: "CNAME", name, value: target, ok: check?.routeOk, why: "Trỏ tên miền về GODA.Frame" }
       : { type: "A", name: "@", value: apexA, ok: check?.routeOk, why: "Trỏ tên miền gốc về GODA.Frame" },
+    // extra challenge required by the hosting platform (shown only when pending)
+    ...(check?.platform?.challenges || []).map((c) => ({
+      type: c.type,
+      name: c.domain.endsWith("." + labels.slice(-zoneLen).join(".")) ? c.domain.slice(0, -(labels.slice(-zoneLen).join(".").length + 1)) : c.domain,
+      value: c.value,
+      ok: false as boolean | undefined,
+      why: "Xác minh HTTPS (bắt buộc vì tên miền gốc đang dùng ở nơi khác)",
+    })),
   ];
   const copy = async (t: string) => { await navigator.clipboard.writeText(t); toast("Đã sao chép"); };
 
@@ -80,7 +88,8 @@ function DomainCard({ d, campaigns, target, apexA, txtPrefix }: { d: D; campaign
     try {
       const r = await api<Check>(`/api/domains/${d.id}/verify`, { method: "POST" });
       setCheck(r);
-      if (r.verified && r.routeOk) toast("🎉 Tên miền đã hoạt động");
+      if (r.platform && !r.platform.verified) toast("Cần thêm 1 bản ghi TXT xác minh HTTPS — xem dòng mới trong bảng", "bad");
+      else if (r.verified && r.routeOk) toast("🎉 Tên miền đã hoạt động");
       else if (r.verified) toast("Đã xác minh sở hữu — còn bản ghi trỏ tên miền");
       else toast("Chưa thấy bản ghi TXT — DNS có thể mất 5–30 phút để cập nhật", "bad");
       router.refresh();
@@ -105,13 +114,13 @@ function DomainCard({ d, campaigns, target, apexA, txtPrefix }: { d: D; campaign
     router.refresh();
   }
 
-  const live = !!d.verified_at && check?.routeOk !== false;
+  const live = !!d.verified_at && check?.routeOk !== false && check?.platform?.verified !== false;
   return (
     <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
       <div className="flex flex-wrap items-center gap-3">
         <Globe className="size-5 text-ink-3" />
         <a href={`https://${d.hostname}`} target="_blank" className="flex items-center gap-1 font-mono text-[15px] font-semibold hover:underline">{d.hostname}<ExternalLink className="size-3.5 opacity-50" /></a>
-        {d.verified_at ? (live ? <Badge tone="ok">● Đã xác minh</Badge> : <Badge tone="warn">Đã xác minh · chưa trỏ</Badge>) : <Badge tone="warn">Chờ cấu hình DNS</Badge>}
+        {d.verified_at ? (live ? <Badge tone="ok">● Đã xác minh</Badge> : <Badge tone="warn">{check?.platform?.verified === false ? "Chờ xác minh HTTPS" : "Đã xác minh · chưa trỏ"}</Badge>) : <Badge tone="warn">Chờ cấu hình DNS</Badge>}
         <div className="ml-auto flex gap-2">
           <Button size="sm" variant="secondary" onClick={verify} loading={loading}><RefreshCw className="size-3.5" /> Kiểm tra</Button>
           <Button size="sm" variant="ghost" onClick={remove}><Trash2 className="size-3.5" /></Button>
@@ -129,8 +138,8 @@ function DomainCard({ d, campaigns, target, apexA, txtPrefix }: { d: D; campaign
         <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-stone-50 text-left text-xs uppercase tracking-wider text-ink-3"><tr><th className="px-3 py-2">Loại</th><th className="px-3 py-2">Tên (Host)</th><th className="px-3 py-2">Giá trị</th><th className="px-3 py-2" /></tr></thead>
           <tbody className="divide-y divide-line">
-            {records.map((r) => (
-              <tr key={r.type}>
+            {records.map((r, i) => (
+              <tr key={r.type + i}>
                 <td className="px-3 py-2.5 font-semibold">{r.type}</td>
                 <td className="px-3 py-2.5"><button onClick={() => copy(r.name)} className="flex items-center gap-1.5 font-mono text-xs hover:text-brand">{r.name}<Copy className="size-3" /></button></td>
                 <td className="px-3 py-2.5"><button onClick={() => copy(r.value)} className="flex items-center gap-1.5 break-all text-left font-mono text-xs hover:text-brand">{r.value}<Copy className="size-3 shrink-0" /></button><div className="text-[11px] text-ink-3">{r.why}</div></td>

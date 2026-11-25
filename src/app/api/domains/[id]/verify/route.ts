@@ -2,7 +2,7 @@ import { one, run, audit } from "@/lib/db";
 import { apiUser, handle, ok, HttpError } from "@/lib/api";
 import { isAdmin } from "@/lib/auth";
 import { rateLimit } from "@/lib/ratelimit";
-import { checkDns, vercelAddDomain, vercelAutomation, type DomainRow } from "@/lib/domains";
+import { checkDns, vercelAddDomain, vercelAutomation, vercelDomainStatus, type DomainRow } from "@/lib/domains";
 
 export const POST = handle(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   rateLimit(req, "domain-verify", 20, 60_000);
@@ -24,5 +24,6 @@ export const POST = handle(async (req: Request, { params }: { params: Promise<{ 
     }
     vercel = await vercelAddDomain(d.hostname);
   }
-  return ok({ ...dns, verified: dns.txtOk, vercel, automation: vercelAutomation() });
+  const platform = vercel.ok ? await vercelDomainStatus(d.hostname) : null;
+  return ok({ ...dns, verified: dns.txtOk, vercel, automation: vercelAutomation(), platform });
 });
