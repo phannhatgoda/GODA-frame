@@ -4,7 +4,8 @@ import {
   Camera, Check, ChevronLeft, Copy, Download, ImagePlus, Info, Loader2, Maximize2, Palette, Pencil, RotateCcw, RotateCw, ScanFace, Share2, Sparkles, Wand2, X,
 } from "lucide-react";
 import { coverScale, emptyPhoto, loadImage, render, type PhotoState } from "@/lib/client/render";
-import { FONTS, type FrameConfig, type TextField, type Theme } from "@/lib/types";
+import { EFFECT_LABEL, FONTS, type FrameConfig, type TextEffect, type TextField, type Theme } from "@/lib/types";
+import { FxSwatch } from "../editor/TextEffects";
 import { cx } from "../ui";
 import { onColor } from "@/lib/color";
 
@@ -153,6 +154,13 @@ export function FrameStudio({
   const original = useRef<HTMLCanvasElement | null>(null);
   const cutout = useRef<HTMLCanvasElement | null>(null);
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(cfg.texts.map((t) => [t.id, ""])));
+  // guest-chosen colour / effect per field (only where the organizer allows it)
+  const [styles, setStyles] = useState<Record<string, { color?: string; effect?: TextEffect }>>({});
+  const ecfg = useMemo(
+    () => ({ ...cfg, texts: cfg.texts.map((t) => (t.guestStyle && styles[t.id] ? { ...t, ...styles[t.id] } : t)) }),
+    [cfg, styles],
+  );
+  const setStyle = (id: string, p: { color?: string; effect?: TextEffect }) => setStyles((x) => ({ ...x, [id]: { ...x[id], ...p } }));
   const [editing, setEditing] = useState<string | null>(null);
   const [tool, setTool] = useState<Tool>(null);
   const [busy, setBusy] = useState("");
@@ -176,9 +184,9 @@ export function FrameStudio({
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const id = requestAnimationFrame(() => render(c.getContext("2d")!, cfg, { frame, photo, values }));
+    const id = requestAnimationFrame(() => render(c.getContext("2d")!, ecfg, { frame, photo, values }));
     return () => cancelAnimationFrame(id);
-  }, [cfg, frame, photo, values, fontsReady, editing]);
+  }, [ecfg, frame, photo, values, fontsReady, editing]);
 
   const flash = useCallback((t: string) => {
     setHint(t);
@@ -340,7 +348,7 @@ export function FrameStudio({
     const c = document.createElement("canvas");
     c.width = cfg.width;
     c.height = cfg.height;
-    render(c.getContext("2d")!, cfg, { frame, photo, values });
+    render(c.getContext("2d")!, ecfg, { frame, photo, values });
     const type = forceJpeg || cfg.format === "jpg" ? "image/jpeg" : "image/png";
     return new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("export"))), type, 0.93));
   }
@@ -488,16 +496,16 @@ export function FrameStudio({
                 <button
                   key={t.id}
                   onClick={() => setEditing(t.id)}
-                  className={cx("group absolute z-10 rounded-lg transition", isEditing ? "ring-[3px] ring-offset-2 ring-offset-transparent" : !val && "border-2 border-dashed border-current/50 bg-white/30")}
+                  className={cx("group absolute z-10 rounded-lg transition", isEditing ? "ring-[3px] ring-offset-2 ring-offset-transparent" : !val && !t.defaultValue && "border-2 border-dashed border-current/50 bg-white/30")}
                   style={{ ...style, color: t.color, ...(isEditing ? { ["--tw-ring-color" as string]: accent, background: "rgba(255,255,255,.08)" } : {}) }}
                   aria-label={`Sửa ${t.label}`}
                 >
-                  {!val && !isEditing && (
+                  {!val && !t.defaultValue && !isEditing && (
                     <span className="absolute inset-0 flex items-center justify-center gap-1.5 px-2 text-[13px] font-semibold" style={{ fontSize: Math.min(15, Math.max(12, t.fontSize * scale * 0.45)) }}>
                       <Pencil className="size-3.5 shrink-0" /> <span className="truncate">Chạm để nhập {t.label.toLowerCase()}</span>
                     </span>
                   )}
-                  {val && !isEditing && <span className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-white text-stone-700 opacity-80 shadow-md group-hover:opacity-100"><Pencil className="size-3" /></span>}
+                  {(val || t.defaultValue) && !isEditing && <span className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-white text-stone-700 opacity-80 shadow-md group-hover:opacity-100"><Pencil className="size-3" /></span>}
                 </button>
               );
             })}
@@ -634,6 +642,7 @@ export function FrameStudio({
                 onChange={(e) => setValues((v) => ({ ...v, [t.id]: e.target.value }))}
                 className="mt-0.5 w-full bg-transparent text-[15px] font-medium outline-none placeholder:opacity-50 focus:text-stone-900"
               />
+              {t.guestStyle && <div className="mt-2"><GuestStylePicker t={ecfg.texts.find((x) => x.id === t.id)!} onPick={(p) => setStyle(t.id, p)} accent={accent} /></div>}
             </label>
           ))}
         </div>
@@ -730,7 +739,13 @@ export function FrameStudio({
                   {next ? "Tiếp" : "Xong"}
                 </button>
               </div>
-              <p className="mt-1.5 px-1 text-[11px] text-stone-400">Chữ hiển thị trực tiếp trên thiệp và tự co cho vừa khung.</p>
+              {t.guestStyle ? (
+                <div className="mt-2" onMouseDown={(e) => e.preventDefault()} data-editor-bar>
+                  <GuestStylePicker t={ecfg.texts[idx]} onPick={(p) => setStyle(t.id, p)} accent={accent} />
+                </div>
+              ) : (
+                <p className="mt-1.5 px-1 text-[11px] text-stone-400">Chữ hiển thị trực tiếp trên thiệp và tự co cho vừa khung.</p>
+              )}
             </div>
           </div>
         );
@@ -755,6 +770,32 @@ export function FrameStudio({
       )}
 
       {done && <DoneSheet campaign={campaign} done={done} server={done.server} allowCaption={allowed.caption} name={Object.values(values).find(Boolean)} accent={accent} onClose={() => setDone(null)} onShare={() => share(done.blob)} track={track} preview={preview} />}
+    </div>
+  );
+}
+
+const GUEST_FX: TextEffect[] = ["none", "shadow", "outline", "neon", "background", "gradient", "3d", "echo", "glitch"];
+
+/** Colour dots + effect chips shown to guests while they type (organizer opt-in). */
+function GuestStylePicker({ t, onPick, accent }: { t: TextField; onPick: (p: { color?: string; effect?: TextEffect }) => void; accent: string }) {
+  const light = parseInt(t.color.slice(1, 3), 16) + parseInt(t.color.slice(3, 5), 16) + parseInt(t.color.slice(5, 7), 16) > 600;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-0.5 py-0.5">
+        {t.guestColors.map((c) => (
+          <button key={c} type="button" onClick={() => onPick({ color: c })} aria-label={"Màu " + c}
+            className={cx("size-7 shrink-0 rounded-full ring-offset-2 transition", t.color.toLowerCase() === c.toLowerCase() ? "ring-2" : "ring-1 ring-black/10")}
+            style={{ background: c, ["--tw-ring-color" as string]: t.color.toLowerCase() === c.toLowerCase() ? accent : undefined }} />
+        ))}
+      </div>
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+        {GUEST_FX.map((e) => (
+          <button key={e} type="button" onClick={() => onPick({ effect: e })} className={cx("shrink-0 rounded-xl border-2 p-0.5 text-center", t.effect === e ? "" : "border-transparent")} style={t.effect === e ? { borderColor: accent } : undefined}>
+            <FxSwatch t={t} effect={e} dark={light} size={22} />
+            <span className="block text-[10px] font-medium text-stone-600">{EFFECT_LABEL[e]}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -104,7 +104,31 @@ export interface TextField {
   align: "left" | "center" | "right";
   uppercase: boolean;
   required: boolean;
+  /* ---- text effects (Canva-style) ---- */
+  effect: TextEffect;
+  effectColor: string; // shadow / outline / glow / background colour
+  gradientTo: string; // second colour for "gradient"
+  intensity: number; // 0–100
+  letterSpacing: number; // in 1/100 em, -10 … 60
+  italic: boolean;
+  curve: number; // -100 (∪) … 0 … 100 (∩)
+  /** let guests pick their own colour / effect while typing */
+  guestStyle: boolean;
+  guestColors: string[];
 }
+
+export const TEXT_EFFECTS = ["none", "shadow", "lift", "outline", "hollow", "neon", "echo", "glitch", "splice", "background", "gradient", "3d"] as const;
+export type TextEffect = (typeof TEXT_EFFECTS)[number];
+
+export const EFFECT_LABEL: Record<TextEffect, string> = {
+  none: "Không", shadow: "Đổ bóng", lift: "Nổi khối", outline: "Viền", hollow: "Rỗng", neon: "Neon", echo: "Tiếng vọng",
+  glitch: "Glitch", splice: "Tách lớp", background: "Nền chữ", gradient: "Gradient", "3d": "Nổi 3D",
+};
+
+export const TEXT_FX_DEFAULT = {
+  effect: "none" as TextEffect, effectColor: "#000000", gradientTo: "#FF5A1F", intensity: 50, letterSpacing: 0, italic: false, curve: 0,
+  guestStyle: false, guestColors: ["#FFFFFF", "#111111", "#FFD166", "#FF5A1F", "#06D6A0", "#4CC9F0", "#F72585"],
+};
 
 export interface PhotoSlot {
   enabled: boolean;
@@ -185,7 +209,7 @@ export function defaultConfig(type: "avatar" | "invitation"): FrameConfig {
         {
           id: "name", label: "Tên của bạn", placeholder: "VD: Nguyễn Văn An", defaultValue: "",
           x: 540, y: 760, maxWidth: 860, fontSize: 84, font: "dancing", color: "#8A3B1D",
-          weight: 700, align: "center", uppercase: false, required: true,
+          weight: 700, align: "center", uppercase: false, required: true, ...TEXT_FX_DEFAULT,
         },
       ],
       ai: { face: true, background: false, filters: false, caption: true },

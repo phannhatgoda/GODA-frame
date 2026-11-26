@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { all, one } from "./db";
-import { DEFAULT_DESIGN, defaultConfig, defaultTheme, parseJson, type CampaignPublic, type FrameConfig, type Theme } from "./types";
+import { DEFAULT_DESIGN, TEXT_EFFECTS, TEXT_FX_DEFAULT, defaultConfig, defaultTheme, parseJson, type CampaignPublic, type FrameConfig, type Theme } from "./types";
 
 export interface CampaignRow {
   id: string;
@@ -24,6 +24,7 @@ export function hydrate(row: CampaignRow): CampaignPublic & { owner_id: string; 
   const cfg = parseJson<FrameConfig>(row.config, base);
   cfg.photo = { ...base.photo, ...cfg.photo };
   cfg.ai = { ...base.ai, ...cfg.ai };
+  cfg.texts = (cfg.texts || []).map((t) => ({ ...TEXT_FX_DEFAULT, ...t }));
   return {
     id: row.id,
     slug: row.slug,
@@ -127,6 +128,10 @@ export const configSchema = z.object({
         defaultValue: z.string().max(120), x: num, y: num, maxWidth: num.positive(),
         fontSize: z.number().min(8).max(400), font, color, weight: z.number().min(100).max(900),
         align: z.enum(["left", "center", "right"]), uppercase: z.boolean(), required: z.boolean(),
+        effect: z.enum(TEXT_EFFECTS).default("none"), effectColor: color.default("#000000"), gradientTo: color.default("#FF5A1F"),
+        intensity: z.number().min(0).max(100).default(50), letterSpacing: z.number().min(-10).max(60).default(0),
+        italic: z.boolean().default(false), curve: z.number().min(-100).max(100).default(0),
+        guestStyle: z.boolean().default(false), guestColors: z.array(color).max(12).default(TEXT_FX_DEFAULT.guestColors),
       }),
     )
     .max(6),

@@ -1,5 +1,6 @@
 "use client";
-import { FONTS, type FrameConfig, type TextField } from "../types";
+import { type FrameConfig, type TextField } from "../types";
+import { drawText, fitSize } from "./textfx";
 
 export interface PhotoState {
   img: CanvasImageSource | null; // original or AI cutout
@@ -82,14 +83,7 @@ function drawPhoto(ctx: CanvasRenderingContext2D, cfg: FrameConfig, p: PhotoStat
 }
 
 export function fitText(ctx: CanvasRenderingContext2D, t: TextField, text: string) {
-  let size = t.fontSize;
-  const fam = FONTS[t.font]?.css || "sans-serif";
-  for (let i = 0; i < 40; i++) {
-    ctx.font = `${t.weight} ${size}px ${fam}`;
-    if (ctx.measureText(text).width <= t.maxWidth || size <= 10) break;
-    size *= 0.94;
-  }
-  return size;
+  return fitSize(ctx, t, text);
 }
 
 function drawTexts(ctx: CanvasRenderingContext2D, cfg: FrameConfig, values: Record<string, string>, guides: boolean, hide?: string | null) {
@@ -98,14 +92,7 @@ function drawTexts(ctx: CanvasRenderingContext2D, cfg: FrameConfig, values: Reco
     let text = (values[t.id] ?? "").trim() || t.defaultValue || (guides ? t.placeholder : "");
     if (!text) continue;
     if (t.uppercase) text = text.toLocaleUpperCase("vi-VN");
-    fitText(ctx, t, text);
-    ctx.save();
-    ctx.fillStyle = t.color;
-    ctx.textAlign = t.align;
-    ctx.textBaseline = "middle";
-    if (guides && !(values[t.id] ?? "").trim() && !t.defaultValue) ctx.globalAlpha = 0.35;
-    ctx.fillText(text, t.x, t.y);
-    ctx.restore();
+    drawText(ctx, t, text, guides && !(values[t.id] ?? "").trim() && !t.defaultValue);
   }
 }
 

@@ -9,9 +9,10 @@ import {
 import { api, Badge, Button, cx, Field, Input, Segmented, Select, Switch, Textarea, useToast } from "../ui";
 import { FramePlacer } from "./FramePlacer";
 import { useFitBox } from "../useFitBox";
+import { TextEffectsPanel } from "./TextEffects";
 import { TemplateThumb } from "../TemplateThumb";
 import { detectTransparentSlot, loadImage } from "@/lib/client/render";
-import { DEFAULT_DESIGN, FONTS, TEMPLATE_PRESETS, TEMPLATES, type BgStyle, type CampaignPublic, type Design, type FontId, type FrameConfig, type TemplateId, type TextField, type Theme } from "@/lib/types";
+import { DEFAULT_DESIGN, TEXT_FX_DEFAULT, FONTS, TEMPLATE_PRESETS, TEMPLATES, type BgStyle, type CampaignPublic, type Design, type FontId, type FrameConfig, type TemplateId, type TextField, type Theme } from "@/lib/types";
 import type { Features } from "@/lib/features";
 
 const SAMPLES = [
@@ -253,7 +254,7 @@ function FrameTab({ c, setConfig, perms, selected, setSelected }: { c: CampaignP
     const t: TextField = {
       id, label: cfg.texts.length ? "Chức danh / Đơn vị" : "Tên của bạn", placeholder: cfg.texts.length ? "VD: Phòng Marketing" : "VD: Nguyễn Văn An", defaultValue: "",
       x: Math.round(cfg.width / 2), y: Math.round(cfg.height * (0.6 + cfg.texts.length * 0.08)), maxWidth: Math.round(cfg.width * 0.8),
-      fontSize: Math.round(cfg.width * (cfg.texts.length ? 0.035 : 0.06)), font: "be-vietnam", color: "#17120E", weight: 700, align: "center", uppercase: false, required: cfg.texts.length === 0,
+      fontSize: Math.round(cfg.width * (cfg.texts.length ? 0.035 : 0.06)), font: "be-vietnam", color: "#17120E", weight: 700, align: "center", uppercase: false, required: cfg.texts.length === 0, ...TEXT_FX_DEFAULT,
     };
     setConfig({ texts: [...cfg.texts, t] });
     setSelected(id);
@@ -350,6 +351,7 @@ function FrameTab({ c, setConfig, perms, selected, setSelected }: { c: CampaignP
               <input type="range" min={100} max={cfg.width} value={sel.maxWidth} onChange={(e) => updText(sel.id, { maxWidth: +e.target.value })} className="mt-3 w-full" />
             </Field>
             <Field label="Giá trị mặc định" hint="Để trống nếu khách tự nhập"><Input value={sel.defaultValue} onChange={(e) => updText(sel.id, { defaultValue: e.target.value })} /></Field>
+            <TextEffectsPanel t={sel} upd={(p) => updText(sel.id, p)} />
             <div className="flex flex-wrap items-center gap-5 sm:col-span-2">
               <label className="flex items-center gap-2 text-sm"><Switch checked={sel.uppercase} onChange={(v) => updText(sel.id, { uppercase: v })} /> In hoa</label>
               <label className="flex items-center gap-2 text-sm"><Switch checked={sel.required} onChange={(v) => updText(sel.id, { required: v })} /> Bắt buộc</label>
